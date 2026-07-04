@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CELL·NET — Flip-Dot CA Console</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+  :root{
+    --bg:#100F0C;
+    --graphite:#1A1815;
+    --graphite-hi:#242019;
+    --recess:#0B0A08;
+    --dot-off:#211E18;
+    --dot-off-edge:#0D0C09;
+    --amber:#F2C14E;
+    --amber-hot:#FF7A34;
+    --brass:#B8924A;
+    --brass-dim:#7C6636;
+    --steel:#5E574B;
+    --text:#EDE6D6;
+    --muted:#8A8272;
+    --vfd:#5BE7C4;
+    --nixie:#FF6A22;
+  }
+
+  *{box-sizing:border-box;}
+  html,body{margin:0;}
+  body{
+    background:
+      radial-gradient(120% 90% at 50% -10%, #191712 0%, var(--bg) 60%);
+    color:var(--text);
+    font-family:'IBM Plex Mono', monospace;
+    min-height:100vh;
+    padding:0 0 48px;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  /* ---------- Console chrome ---------- */
+  .console-bar{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:16px;
+    padding:14px 22px;
+    background:linear-gradient(180deg, var(--graphite-hi), var(--graphite));
+    border-bottom:1px solid #000;
+    box-shadow:0 1px 0 rgba(255,255,255,0.03) inset, 0 6px 20px -8px #000;
+    position:sticky;
+    top:0;
+    z-index:20;
+  }
+  .brand{
+    display:flex;
+    align-items:baseline;
+    gap:12px;
+  }
+  .brand .mark{
+    font-family:'Saira Condensed', sans-serif;
+    font-weight:700;
+    font-size:22px;
+    letter-spacing:0.14em;
+    color:var(--amber);
+    text-shadow:0 0 14px rgba(242,193,78,0.35);
+  }
+  .brand .sub{
+    font-size:10px;
+    letter-spacing:0.22em;
+    color:var(--muted);
+    text-transform:uppercase;
+  }
+  .bar-right{display:flex; align-items:center; gap:8px;}
+
+  .tabs{display:flex; gap:4px;}
+  .tab{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    letter-spacing:0.14em;
+    text-transform:uppercase;
+    color:var(--muted);
+    background:var(--recess);
+    border:1px solid #000;
+    border-radius:5px;
+    padding:8px 14px;
+    cursor:pointer;
+    transition:color .15s, background .15s;
+  }
+  .tab.active{
+    color:var(--bg);
+    background:var(--amber);
+    box-shadow:0 0 16px -2px rgba(242,193,78,0.5);
+  }
+  .tab:not(.active):hover{ color:var(--amber); }
+
+  .sound-toggle{
+    display:flex; align-items:center; gap:7px;
+    font-size:10px; letter-spacing:0.1em; color:var(--muted);
+    text-transform:uppercase;
+    background:var(--recess);
+    border:1px solid #000; border-radius:5px;
+    padding:7px 11px; cursor:pointer;
+    user-select:none;
+  }
+  .sound-toggle .led{
+    width:8px; height:8px; border-radius:50%;
+    background:#3a352b; box-shadow:0 0 0 1px #000 inset;
+  }
+  .sound-toggle.on .led{
+    background:var(--amber); box-shadow:0 0 8px var(--amber);
+  }
+
+  .wrap{ max-width:900px; margin:26px auto 0; padding:0 20px; }
+  .view{ display:none; }
+  .view.active{ display:block; }
+
+  /* ---------- Thesis strip ---------- */
+  .thesis{
+    font-size:12.5px; line-height:1.65; color:var(--muted);
+    border-left:2px solid var(--brass-dim);
+    padding:2px 0 2px 14px;
+    margin-bottom:22px;
+    max-width:640px;
+  }
+  .thesis b{ color:var(--text); font-weight:500; }
+  .thesis .em{ color:var(--amber); }
+
+  /* ---------- The board ---------- */
+  .board-shell{
+    display:flex; flex-direction:column; align-items:center;
+  }
+  .blind{
+    width:100%; max-width:520px;
+    display:flex; justify-content:space-between; align-items:center;
+    background:#000;
+    border:1px solid #000;
+    border-bottom:none;
+    border-radius:8px 8px 0 0;
+    padding:7px 14px;
+    font-family:'Saira Condensed', sans-serif;
+    letter-spacing:0.2em;
+    font-size:13px;
+    color:var(--amber);
+  }
+  .blind .route{ font-weight:700; }
+  .blind .dest{ color:var(--muted); font-size:11px; letter-spacing:0.16em; }
+
+  .board-frame{
+    background:linear-gradient(180deg, #26221b, #14120e);
+    padding:16px;
+    border-radius:0 0 10px 10px;
+    border:1px solid #000;
+    box-shadow:
+      0 0 0 1px rgba(255,255,255,0.03) inset,
+      0 24px 60px -24px #000;
+  }
+  .board{
+    display:grid;
+    gap:2px;
+    background:var(--recess);
+    padding:8px;
+    border-radius:4px;
+    box-shadow:0 0 30px -10px #000 inset;
+    touch-action:none;
+  }
+  .dot{
+    width:100%;
+    aspect-ratio:1/1;
+    border-radius:50%;
+    background:
+      radial-gradient(circle at 38% 34%, #2c2820 0%, var(--dot-off) 55%, var(--dot-off-edge) 100%);
+    box-shadow:0 1px 1px rgba(0,0,0,0.6);
+    cursor:pointer;
+    will-change:transform, background;
+  }
+  .dot.on{
+    background:
+      radial-gradient(circle at 38% 34%, #FFE9A6 0%, var(--amber) 45%, #C9922B 100%);
+    box-shadow:0 0 6px rgba(242,193,78,0.55);
+  }
+
+  /* ---------- Control console ---------- */
+  .console{
+    max-width:520px; margin:18px auto 0;
+    background:linear-gradient(180deg, var(--graphite-hi), var(--graphite));
+    border:1px solid #000; border-radius:10px;
+    padding:16px;
+    box-shadow:0 1px 0 rgba(255,255,255,0.03) inset;
+  }
+  .console-section + .console-section{
+    margin-top:14px; padding-top:14px;
+    border-top:1px solid #000;
+    box-shadow:0 1px 0 rgba(255,255,255,0.03);
+  }
+  .sec-label{
+    font-size:9.5px; letter-spacing:0.2em; text-transform:uppercase;
+    color:var(--brass); margin-bottom:9px;
+  }
+
+  .btn-row{ display:flex; gap:8px; flex-wrap:wrap; }
+  .pbtn{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px; letter-spacing:0.06em;
+    color:var(--text);
+    background:linear-gradient(180deg, #2b271f, #1c1913);
+    border:1px solid #000; border-top:1px solid #38322788;
+    border-radius:6px;
+    padding:9px 13px; cursor:pointer;
+    display:flex; align-items:center; gap:7px;
+    transition:transform .05s, box-shadow .15s;
+    box-shadow:0 2px 0 #000;
+  }
+  .pbtn:hover{ color:var(--amber); }
+  .pbtn:active{ transform:translateY(2px); box-shadow:0 0 0 #000; }
+  .pbtn .led{
+    width:7px; height:7px; border-radius:50%;
+    background:#3a352b; box-shadow:0 0 0 1px #000 inset;
+  }
+  .pbtn.live .led{ background:var(--amber); box-shadow:0 0 7px var(--amber); }
+
+  .preset-bank{ display:flex; gap:6px; flex-wrap:wrap; }
+  .preset{
+    font-size:10.5px; letter-spacing:0.04em;
+    color:var(--muted);
+    background:var(--recess);
+    border:1px solid #000; border-radius:5px;
+    padding:7px 10px; cursor:pointer;
+    transition:color .12s, background .12s;
+  }
+  .preset:hover{ color:var(--amber); }
+  .preset.sel{ color:var(--bg); background:var(--brass); }
+
+  .rule-bank{ display:flex; gap:6px; flex-wrap:wrap; }
+  .rule{
+    font-size:10.5px;
+    color:var(--muted);
+    background:var(--recess);
+    border:1px solid #000; border-radius:5px;
+    padding:7px 10px; cursor:pointer;
+    display:flex; flex-direction:column; gap:2px;
+    transition:color .12s, background .12s;
+  }
+  .rule small{ font-size:8.5px; color:var(--brass-dim); letter-spacing:0.05em; }
+  .rule:hover{ color:var(--amber); }
+  .rule.sel{ color:var(--bg); background:var(--amber); }
+  .rule.sel small{ color:#5c4a1e; }
+
+  .dials{ display:flex; gap:18px; flex-wrap:wrap; }
+  .dial{ flex:1; min-width:150px; }
+  .dial .dl{
+    display:flex; justify-content:space-between;
+    font-size:10px; color:var(--muted); margin-bottom:6px;
+    letter-spacing:0.05em;
+  }
+  .dial .dl b{ color:var(--amber); font-weight:500; }
+  input[type=range]{ width:100%; accent-color:var(--brass); }
+
+  /* ---------- Readouts (segment style) ---------- */
+  .readouts{
+    max-width:520px; margin:16px auto 0;
+    display:grid; grid-template-columns:repeat(4,1fr); gap:10px;
+  }
+  .ro{
+    background:var(--recess);
+    border:1px solid #000; border-radius:7px;
+    padding:10px 10px 8px;
+    box-shadow:0 0 22px -12px var(--amber) inset;
+  }
+  .ro .rl{
+    font-size:8.5px; letter-spacing:0.14em; text-transform:uppercase;
+    color:var(--muted); margin-bottom:4px;
+  }
+  .ro .rv{
+    font-family:'Saira Condensed', sans-serif;
+    font-weight:700; font-size:24px; line-height:1;
+    color:var(--amber);
+    text-shadow:0 0 12px rgba(242,193,78,0.4);
+    font-variant-numeric:tabular-nums;
+  }
+
+  /* ---------- Displays tab ---------- */
+  .disp-intro{
+    font-size:12.5px; line-height:1.65; color:var(--muted);
+    max-width:640px; margin-bottom:24px;
+  }
+  .disp-intro b{ color:var(--text); font-weight:500; }
+  .disp-grid{
+    display:grid; grid-template-columns:repeat(auto-fit, minmax(240px,1fr));
+    gap:16px;
+  }
+  .dcard{
+    background:linear-gradient(180deg, var(--graphite-hi), var(--graphite));
+    border:1px solid #000; border-radius:10px;
+    padding:16px;
+    box-shadow:0 1px 0 rgba(255,255,255,0.03) inset;
+    display:flex; flex-direction:column;
+  }
+  .dcard .stage{
+    height:96px; border-radius:6px; margin-bottom:12px;
+    background:var(--recess);
+    display:flex; align-items:center; justify-content:center;
+    overflow:hidden;
+    box-shadow:0 0 24px -12px #000 inset;
+  }
+  .dcard h3{
+    font-family:'Saira Condensed', sans-serif;
+    font-weight:600; font-size:17px; letter-spacing:0.06em;
+    margin:0 0 3px; color:var(--text);
+  }
+  .dcard .tag{
+    font-size:9px; letter-spacing:0.14em; text-transform:uppercase;
+    color:var(--brass); margin-bottom:8px;
+  }
+  .dcard p{ font-size:11.5px; line-height:1.55; color:var(--muted); margin:0; }
+  .dcard.primary{ border:1px solid var(--brass-dim); }
+  .dcard.primary .tag{ color:var(--amber); }
+
+  /* mini flip-dot preview */
+  .mini-dots{ display:grid; grid-template-columns:repeat(7,10px); gap:3px; }
+  .mini-dots span{
+    width:10px; height:10px; border-radius:50%;
+    background:var(--dot-off);
+    transition:background .2s, transform .2s;
+  }
+  .mini-dots span.on{
+    background:var(--amber); box-shadow:0 0 5px var(--amber);
+  }
+
+  /* split-flap */
+  .flap{
+    width:44px; height:60px; border-radius:5px;
+    background:#1c1a16;
+    position:relative; overflow:hidden;
+    display:flex; align-items:center; justify-content:center;
+    font-family:'Saira Condensed', sans-serif; font-weight:700; font-size:34px;
+    color:var(--text);
+    box-shadow:0 3px 8px -3px #000;
+  }
+  .flap::after{
+    content:''; position:absolute; left:0; right:0; top:50%; height:1px;
+    background:#000;
+  }
+
+  /* VFD */
+  .vfd{
+    font-family:'Saira Condensed', sans-serif; font-weight:700;
+    font-size:30px; letter-spacing:0.1em;
+    color:var(--vfd);
+    text-shadow:0 0 10px var(--vfd), 0 0 22px rgba(91,231,196,0.5);
+  }
+  /* nixie */
+  .nixie{
+    font-family:'Saira Condensed', sans-serif; font-weight:700;
+    font-size:34px; letter-spacing:0.08em;
+    color:var(--nixie);
+    text-shadow:0 0 8px var(--nixie), 0 0 20px rgba(255,106,34,0.6);
+  }
+  /* led matrix */
+  .led-grid{ display:grid; grid-template-columns:repeat(9,7px); gap:2px; }
+  .led-grid span{
+    width:7px; height:7px; border-radius:1px; background:#241d12;
+  }
+  .led-grid span.on{ background:#ff3b3b; box-shadow:0 0 4px #ff3b3b; }
+
+  .target-note{
+    margin-top:22px; padding:14px 16px;
+    background:var(--recess); border:1px solid var(--brass-dim);
+    border-radius:9px; font-size:12px; line-height:1.6; color:var(--muted);
+  }
+  .target-note b{ color:var(--amber); font-weight:500; }
+
+  @media (max-width:560px){
+    .readouts{ grid-template-columns:repeat(2,1fr); }
+    .brand .sub{ display:none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="console-bar">
+  <div class="brand">
+    <span class="mark">CELL·NET</span>
+    <span class="sub">Flip-Dot Automaton Console</span>
+  </div>
+  <div class="bar-right">
+    <div class="tabs">
+      <button class="tab active" data-view="engine">Engine</button>
+      <button class="tab" data-view="displays">Displays</button>
+    </div>
+    <div class="sound-toggle" id="soundToggle"><span class="led"></span>Clack</div>
+  </div>
+</div>
+
+<!-- ============ ENGINE ============ -->
+<div class="wrap">
+  <div class="view active" id="view-engine">
+    <p class="thesis">
+      Each dot runs one rule, reading <b>only its eight neighbors</b>. On a CPU that's
+      1,600 sequential updates per frame. On the FPGA it's <span class="em">one clock edge</span> —
+      every dot is its own coil-driven cell. This board is the software twin of that fabric:
+      what you draw here becomes the pattern the real flip-dots throw.
+    </p>
+
+    <div class="board-shell">
+      <div class="blind">
+        <span class="route" id="blindRule">CONWAY · B3/S23</span>
+        <span class="dest" id="blindGen">GEN 0000</span>
+      </div>
+      <div class="board-frame">
+        <div class="board" id="board"></div>
+      </div>
+    </div>
+
+    <div class="readouts">
+      <div class="ro"><div class="rl">Generation</div><div class="rv" id="roGen">0</div></div>
+      <div class="ro"><div class="rl">Lit Dots</div><div class="rv" id="roPop">0</div></div>
+      <div class="ro"><div class="rl">Peak Dwell</div><div class="rv" id="roAge">0</div></div>
+      <div class="ro"><div class="rl">Fabric %</div><div class="rv" id="roUtil">0</div></div>
+    </div>
+
+    <div class="console">
+      <div class="console-section">
+        <div class="sec-label">Transport</div>
+        <div class="btn-row">
+          <button class="pbtn" id="playBtn"><span class="led"></span>Run</button>
+          <button class="pbtn" id="stepBtn">Step</button>
+          <button class="pbtn" id="randBtn">Seed</button>
+          <button class="pbtn" id="clearBtn">Blank</button>
+        </div>
+      </div>
+
+      <div class="console-section">
+        <div class="sec-label">Ruleset — the truth table that becomes logic</div>
+        <div class="rule-bank" id="ruleBank"></div>
+      </div>
+
+      <div class="console-section">
+        <div class="sec-label">Pattern bank</div>
+        <div class="preset-bank" id="presetBank"></div>
+      </div>
+
+      <div class="console-section">
+        <div class="sec-label">Calibration</div>
+        <div class="dials">
+          <div class="dial">
+            <div class="dl"><span>Clock rate</span><b id="spdVal">10 gen/s</b></div>
+            <input type="range" id="speed" min="1" max="30" value="10">
+          </div>
+          <div class="dial">
+            <div class="dl"><span>Seed density</span><b id="denVal">28%</b></div>
+            <input type="range" id="density" min="5" max="60" value="28">
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ DISPLAYS ============ -->
+  <div class="view" id="view-displays">
+    <p class="disp-intro">
+      The engine outputs a grid of bits every clock. The interesting question is what
+      <b>physical medium</b> throws those bits. Here are the real options, from the one
+      that best matches the "one coil per cell" thesis to the honest prototyping baseline —
+      each with how the FPGA would actually drive it.
+    </p>
+
+    <div class="disp-grid">
+      <div class="dcard primary">
+        <div class="stage"><div class="mini-dots" id="miniFlip"></div></div>
+        <h3>Flip-Dot Matrix</h3>
+        <div class="tag">Primary target</div>
+        <p>One bistable electromagnetic disc per pixel — black on one face, phosphor-yellow on
+        the other. A pulse latches it; it then holds with <b>zero power</b>. FPGA drives
+        panels through serial coil drivers (AlfaZeta / ULN2803 + shift registers): one clock
+        streams a whole frame, so the CA's parallel update maps straight onto the panel. The
+        mechanical clack is the point.</p>
+      </div>
+
+      <div class="dcard">
+        <div class="stage"><div class="flap" id="flap">A</div></div>
+        <h3>Split-Flap (Solari)</h3>
+        <div class="tag">Text · scores</div>
+        <p>Rotating character flaps, one small motor/coil per module. Too coarse for a dense
+        pixel grid, but perfect for throwing the engine's <b>readouts</b> — generation count,
+        population — as a departure-board display. FPGA times the flap stepping sequence.</p>
+      </div>
+
+      <div class="dcard">
+        <div class="stage"><div class="vfd" id="vfd">01</div></div>
+        <h3>Vacuum Fluorescent</h3>
+        <div class="tag">Glow · persistence</div>
+        <p>Phosphor anodes under a heated filament — that cyan-green glow with soft persistence.
+        Needs ~20–30 V anode/grid drive, so FPGA plus a boost converter and a high-voltage
+        driver. Beautiful for a compact status panel beside the main board.</p>
+      </div>
+
+      <div class="dcard">
+        <div class="stage"><div class="nixie" id="nixie">07</div></div>
+        <h3>Nixie Tubes</h3>
+        <div class="tag">Counters</div>
+        <p>Cold-cathode neon, one shaped cathode per digit, ~170 V DC. Not a matrix — so not the
+        grid, but the <b>right medium for the counters</b>: live generation and peak-dwell in
+        orange neon. FPGA + HV supply + a driver like the K155ID1.</p>
+      </div>
+
+      <div class="dcard">
+        <div class="stage"><div class="led-grid" id="ledGrid"></div></div>
+        <h3>LED Dot Matrix</h3>
+        <div class="tag">Baseline</div>
+        <p>Cheapest, fastest, no moving parts. HUB75 panels refresh in microseconds and FPGAs
+        drive them brilliantly. This is what you <b>prototype the fabric on first</b> — prove
+        the grid, then graduate the output to flip-dots.</p>
+      </div>
+    </div>
+
+    <div class="target-note">
+      <b>Plan:</b> prove the parallel fabric on a cheap LED/HUB75 panel first (it just wants
+      bits, fast), then swap the output stage to a flip-dot panel once the Verilog grid is
+      solid. The cell logic doesn't change — only the driver on the last stage does. That
+      separation (compute fabric vs. output medium) is exactly how you'd argue the design in a
+      writeup.
+    </div>
+  </div>
+</div>
+
+<script>
+// ============ CORE ENGINE ============
+const N = 40;
+const board = document.getElementById('board');
+board.style.gridTemplateColumns = `repeat(${N}, 1fr)`;
+board.style.width = 'min(520px, 84vw)';
+board.style.height = 'min(520px, 84vw)';
+
+let grid = new Uint8Array(N*N);
+let age  = new Uint16Array(N*N);
+let cells = [];            // dot DOM nodes
+let gen = 0, running = false, lastTick = 0, fps = 10, density = 0.28;
+let soundOn = false, audioCtx = null;
+
+const idx = (x,y) => y*N + x;
+
+// Rulesets: birth counts + survive counts. Each is literally a truth table.
+const RULES = {
+  conway:  { name:'CONWAY',   rule:'B3/S23',     birth:[3],        survive:[2,3] },
+  highlife:{ name:'HIGHLIFE', rule:'B36/S23',    birth:[3,6],      survive:[2,3] },
+  daynight:{ name:'DAY&NIGHT',rule:'B3678/S34678',birth:[3,6,7,8], survive:[3,4,6,7,8] },
+  seeds:   { name:'SEEDS',    rule:'B2/S',       birth:[2],        survive:[] },
+  maze:    { name:'MAZE',     rule:'B3/S12345',  birth:[3],        survive:[1,2,3,4,5] },
+};
+let rule = RULES.conway;
+
+// build board dots
+for (let i=0;i<N*N;i++){
+  const d = document.createElement('div');
+  d.className = 'dot';
+  d.dataset.i = i;
+  board.appendChild(d);
+  cells.push(d);
+}
+
+// pointer draw
+let painting = false, paintVal = 1;
+function paintAt(clientX, clientY){
+  const r = board.getBoundingClientRect();
+  const cw = r.width / N, ch = r.height / N;
+  const x = Math.floor((clientX - r.left)/cw);
+  const y = Math.floor((clientY - r.top)/ch);
+  if (x<0||y<0||x>=N||y>=N) return;
+  const i = idx(x,y);
+  grid[i] = paintVal;
+  age[i] = paintVal ? 1 : 0;
+  paintDot(i, false);
+}
+board.addEventListener('pointerdown', e=>{
+  painting = true;
+  const i = +e.target.dataset.i;
+  paintVal = grid[i] ? 0 : 1;
+  paintAt(e.clientX, e.clientY);
+});
+board.addEventListener('pointermove', e=>{ if(painting) paintAt(e.clientX, e.clientY); });
+window.addEventListener('pointerup', ()=> painting = false);
+
+// ---- THE RULE (pure, local — becomes ca_cell.v) ----
+function update(alive, n){
+  return alive ? (rule.survive.includes(n) ? 1 : 0)
+               : (rule.birth.includes(n)   ? 1 : 0);
+}
+function neighbors(g,x,y){
+  let c=0;
+  for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){
+    if(!dx&&!dy) continue;
+    c += g[idx((x+dx+N)%N,(y+dy+N)%N)];
+  }
+  return c;
+}
+
+function step(){
+  const next = new Uint8Array(N*N);
+  let flips = 0;
+  const changed = [];
+  for(let y=0;y<N;y++)for(let x=0;x<N;x++){
+    const i = idx(x,y);
+    const a = grid[i];
+    const res = update(a, neighbors(grid,x,y));
+    next[i] = res;
+    if(res) age[i] = a ? Math.min(age[i]+1, 999) : 1;
+    else age[i] = 0;
+    if(res !== a){ flips++; changed.push(i); }
+  }
+  grid = next;
+  gen++;
+  // animate flips (cap animation on very busy frames to stay smooth)
+  const animate = changed.length <= 260;
+  for(const i of changed) paintDot(i, animate);
+  clack(flips);
+  updateStats();
+}
+
+function paintDot(i, animate){
+  const el = cells[i];
+  if(grid[i]){
+    el.classList.add('on');
+    const t = Math.min(age[i]/18, 1);
+    // dwell heats the phosphor toward orange
+    const r = Math.round(242 + (255-242)*t);
+    const g = Math.round(193 + (122-193)*t);
+    const b = Math.round(78  + (52-78)*t);
+    el.style.background =
+      `radial-gradient(circle at 38% 34%, #FFE9A6 0%, rgb(${r},${g},${b}) 45%, #C9922B 100%)`;
+  } else {
+    el.classList.remove('on');
+    el.style.background = '';
+  }
+  if(animate){
+    el.animate(
+      [{transform:'scaleY(1)'},{transform:'scaleY(0.06)'},{transform:'scaleY(1)'}],
+      {duration:150, easing:'ease-out'}
+    );
+  }
+}
+
+function repaintAll(){ for(let i=0;i<N*N;i++) paintDot(i, false); }
+
+function updateStats(){
+  let pop=0, oldest=0;
+  for(let i=0;i<N*N;i++){ if(grid[i]){ pop++; if(age[i]>oldest) oldest=age[i]; } }
+  document.getElementById('roGen').textContent = gen;
+  document.getElementById('roPop').textContent = pop;
+  document.getElementById('roAge').textContent = oldest;
+  const util = Math.round(pop/(N*N)*100);
+  document.getElementById('roUtil').textContent = util;
+  document.getElementById('blindGen').textContent =
+    'GEN ' + String(gen).padStart(4,'0');
+}
+
+// ---- audio: one filtered click per generation, scaled by flip count ----
+function clack(flips){
+  if(!soundOn || flips===0) return;
+  if(!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+  const t = audioCtx.currentTime;
+  const buf = audioCtx.createBuffer(1, 256, audioCtx.sampleRate);
+  const data = buf.getChannelData(0);
+  for(let i=0;i<256;i++) data[i] = (Math.random()*2-1) * Math.exp(-i/40);
+  const src = audioCtx.createBufferSource(); src.buffer = buf;
+  const bp = audioCtx.createBiquadFilter(); bp.type='bandpass'; bp.frequency.value=2200; bp.Q.value=6;
+  const g = audioCtx.createGain();
+  g.gain.value = Math.min(0.02 + flips*0.0006, 0.14);
+  src.connect(bp); bp.connect(g); g.connect(audioCtx.destination);
+  src.start(t);
+}
+
+// ---- seeds / patterns ----
+function clearGrid(){ grid.fill(0); age.fill(0); gen=0; repaintAll(); updateStats(); }
+function randomize(){
+  for(let i=0;i<N*N;i++){ grid[i] = Math.random()<density?1:0; age[i]=grid[i]?1:0; }
+  gen=0; repaintAll(); updateStats();
+}
+function place(cellsList, cx, cy){
+  clearGrid();
+  for(const [dx,dy] of cellsList){
+    const x=(cx+dx+N)%N, y=(cy+dy+N)%N;
+    grid[idx(x,y)]=1; age[idx(x,y)]=1;
+  }
+  gen=0; repaintAll(); updateStats();
+}
+const PATTERNS = {
+  Glider:   { cells:[[0,0],[1,0],[2,0],[2,1],[1,2]], cx:6, cy:6 },
+  LWSS:     { cells:[[0,0],[3,0],[4,1],[0,2],[4,2],[1,3],[2,3],[3,3],[4,3]], cx:6, cy:8 },
+  Pulsar:   { cells:pulsar(), cx:20, cy:20 },
+  'R-pent': { cells:[[1,0],[2,0],[0,1],[1,1],[1,2]], cx:20, cy:20 },
+  Acorn:    { cells:[[1,0],[3,1],[0,2],[1,2],[4,2],[5,2],[6,2]], cx:16, cy:20 },
+  Gun:      { cells:gliderGun(), cx:3, cy:4 },
+  Random:   { random:true },
+};
+function pulsar(){
+  const base=[[2,0],[3,0],[4,0],[8,0],[9,0],[10,0]];
+  const out=[]; const rows=[0,5,7,12];
+  const cols=[0,5,7,12];
+  const seg=[2,3,4];
+  for(const r of rows) for(const c of seg){ out.push([c,r]); out.push([12-c,r]); }
+  for(const c of cols) for(const r of seg){ out.push([c,r]); out.push([c,12-r]); }
+  return out;
+}
+function gliderGun(){
+  return [[0,4],[0,5],[1,4],[1,5],[10,4],[10,5],[10,6],[11,3],[11,7],[12,2],[12,8],
+   [13,2],[13,8],[14,5],[15,3],[15,7],[16,4],[16,5],[16,6],[17,5],
+   [20,2],[20,3],[20,4],[21,2],[21,3],[21,4],[22,1],[22,5],[24,0],[24,1],[24,5],[24,6],
+   [34,2],[34,3],[35,2],[35,3]];
+}
+
+// ---- build rule + preset banks ----
+const ruleBank = document.getElementById('ruleBank');
+Object.entries(RULES).forEach(([k,r])=>{
+  const b=document.createElement('div');
+  b.className='rule'+(r===rule?' sel':'');
+  b.innerHTML = `${r.name}<small>${r.rule}</small>`;
+  b.onclick = ()=>{
+    rule=r;
+    [...ruleBank.children].forEach(c=>c.classList.remove('sel'));
+    b.classList.add('sel');
+    document.getElementById('blindRule').textContent = `${r.name} · ${r.rule}`;
+  };
+  ruleBank.appendChild(b);
+});
+
+const presetBank = document.getElementById('presetBank');
+Object.entries(PATTERNS).forEach(([name,p])=>{
+  const b=document.createElement('div');
+  b.className='preset'; b.textContent=name;
+  b.onclick=()=>{
+    [...presetBank.children].forEach(c=>c.classList.remove('sel'));
+    b.classList.add('sel');
+    if(p.random) randomize(); else place(p.cells, p.cx, p.cy);
+  };
+  presetBank.appendChild(b);
+});
+
+// ---- transport ----
+const playBtn = document.getElementById('playBtn');
+playBtn.onclick = ()=>{
+  running=!running;
+  playBtn.classList.toggle('live', running);
+  playBtn.querySelector('.led') && (playBtn.childNodes[1].textContent = running?'Halt':'Run');
+  if(running) requestAnimationFrame(loop);
+};
+document.getElementById('stepBtn').onclick = step;
+document.getElementById('randBtn').onclick = randomize;
+document.getElementById('clearBtn').onclick = clearGrid;
+document.getElementById('speed').oninput = e=>{
+  fps=+e.target.value; document.getElementById('spdVal').textContent = fps+' gen/s';
+};
+document.getElementById('density').oninput = e=>{
+  density=+e.target.value/100;
+  document.getElementById('denVal').textContent = e.target.value+'%';
+};
+function loop(ts){
+  if(!running) return;
+  if(ts-lastTick > 1000/fps){ lastTick=ts; step(); }
+  requestAnimationFrame(loop);
+}
+
+// ---- sound toggle ----
+document.getElementById('soundToggle').onclick = function(){
+  soundOn=!soundOn; this.classList.toggle('on', soundOn);
+  if(soundOn && !audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+};
+
+// ---- tabs ----
+document.querySelectorAll('.tab').forEach(t=>{
+  t.onclick=()=>{
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+    document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));
+    t.classList.add('active');
+    document.getElementById('view-'+t.dataset.view).classList.add('active');
+  };
+});
+
+// ============ DISPLAYS TAB animations ============
+// mini flip-dot: scrolling wave
+const miniFlip = document.getElementById('miniFlip');
+const MW=7, MH=5;
+for(let i=0;i<MW*MH;i++){ const s=document.createElement('span'); miniFlip.appendChild(s); }
+let mf=0;
+setInterval(()=>{
+  const kids=miniFlip.children;
+  for(let y=0;y<MH;y++)for(let x=0;x<MW;x++){
+    const on = ((x+y+mf)%4===0);
+    kids[y*MW+x].classList.toggle('on', on);
+  }
+  mf++;
+},260);
+
+// split-flap cycle
+const flap = document.getElementById('flap');
+const flapChars='ABCD·37·GO'.split(''); let fi=0;
+setInterval(()=>{ fi=(fi+1)%flapChars.length; flap.textContent=flapChars[fi]; },900);
+
+// vfd counter
+const vfd=document.getElementById('vfd'); let vc=0;
+setInterval(()=>{ vc=(vc+1)%100; vfd.textContent=String(vc).padStart(2,'0'); },700);
+
+// nixie counter
+const nixie=document.getElementById('nixie'); let nc=7;
+setInterval(()=>{ nc=(nc+1)%100; nixie.textContent=String(nc).padStart(2,'0'); },1100);
+
+// led matrix ripple
+const ledGrid=document.getElementById('ledGrid');
+const LW=9, LH=5;
+for(let i=0;i<LW*LH;i++){ const s=document.createElement('span'); ledGrid.appendChild(s); }
+let lf=0;
+setInterval(()=>{
+  const kids=ledGrid.children;
+  for(let y=0;y<LH;y++)for(let x=0;x<LW;x++){
+    kids[y*LW+x].classList.toggle('on', ((x*x+y+lf)%5===0));
+  }
+  lf++;
+},200);
+
+// boot
+randomize();
+</script>
+</body>
+</html>
