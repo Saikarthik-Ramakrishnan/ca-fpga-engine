@@ -9,7 +9,7 @@ the eventual output target.
 
 ## The thesis
 
-A cellular automaton's update rule is embarrassingly parallel by
+A cellular automaton's update rule is parallel by
 construction: each cell's next state depends only on its own state and its
 eight neighbors. Running that on a CPU or GPU means visiting every cell
 sequentially (or in large-but-still-serial batches). Running it on an FPGA
