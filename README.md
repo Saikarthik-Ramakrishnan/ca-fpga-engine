@@ -1,8 +1,8 @@
 Massively Parallel Cellular Automaton Engine
 
-A cellular automaton engine designed to run natively in parallel hardware —
+A cellular automaton engine designed to run natively in parallel hardware,
 where every cell is its own independent logic unit, updating simultaneously
-on a single clock edge — with a real electromechanical flip-dot display as
+on a single clock edge with a real electromechanical flip-dot display as
 the eventual output target.
 
 ![CELL·NET console running a Gosper glider gun](docs/media/cellnet_demo.gif)
