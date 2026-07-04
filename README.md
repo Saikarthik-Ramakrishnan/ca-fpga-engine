@@ -85,4 +85,4 @@ philosophy.
 
 ## Author
 
-Ram — ECE, Shiv Nadar University Delhi.
+Saikarthik Ramakrishnan: ECE, Shiv Nadar University Delhi.
