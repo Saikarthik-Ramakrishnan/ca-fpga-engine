@@ -1,4 +1,4 @@
-# CELL·NET — Massively Parallel Cellular Automaton Engine
+Massively Parallel Cellular Automaton Engine
 
 A cellular automaton engine designed to run natively in parallel hardware —
 where every cell is its own independent logic unit, updating simultaneously
