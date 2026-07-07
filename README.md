@@ -1,4 +1,4 @@
-# CELL·NET — Massively Parallel Cellular Automaton Engine
+# Massively Parallel Cellular Automaton Engine
 
 I'm building a cellular automaton engine meant to run natively in parallel
 hardware, where every cell is its own independent logic unit updating
@@ -19,8 +19,7 @@ fabric. Every cell updates on the same clock edge. Not "very fast" — at
 once.
 
 That's the actual argument for using an FPGA here instead of reaching for
-a microcontroller or a GPU. It was never about raw throughput. It's that
-the hardware fabric itself is built the same way the problem is shaped.
+a microcontroller or a GPU.It's that the hardware fabric itself is built the same way the problem is shaped.
 
 The flip-dot display carries that same idea one step further into the
 physical world. Each pixel is a tiny bistable electromagnetic disc — one
@@ -29,7 +28,7 @@ It's a mechanical version of the exact same "one independent unit per
 cell" principle the compute side is built on, which is the real reason
 I want this project to end at flip-dots and not an LED matrix.
 
-## Where things stand: Phase 1 — software prototype, plus a parallelism benchmark
+## Phase 1 — software prototype + parallelism benchmark
 
 `software_prototype/cellnet_console.html` is a single self-contained HTML
 file, no dependencies, no build step. Open it in a browser and that's the
@@ -85,7 +84,7 @@ ca-fpga-engine/
 └── LICENSE
 ```
 
-## Why I'm building this
+## Motivation
 
 This is the second-year step up from an FPGA MNIST inference accelerator I
 built earlier — that project proved a pipeline could run on an FPGA at
