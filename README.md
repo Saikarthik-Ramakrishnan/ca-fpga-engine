@@ -28,7 +28,7 @@ It's a mechanical version of the exact same "one independent unit per
 cell" principle the compute side is built on, which is the real reason
 I want this project to end at flip-dots and not an LED matrix.
 
-## Phase 1 — software prototype + parallelism benchmark
+## Phase 1: software prototype + parallelism benchmark
 
 `software_prototype/cellnet_console.html` is a single self-contained HTML
 file, no dependencies, no build step. Open it in a browser and that's the
