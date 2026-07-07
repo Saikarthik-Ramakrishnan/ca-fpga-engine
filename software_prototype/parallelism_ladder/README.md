@@ -1,8 +1,7 @@
 # Parallelism Ladder
 
 Same exact CA update rule as the console (Conway's Life, B3/S23, toroidal
-wraparound), run across five different substrates — from the way you'd
-naively write it as a beginner up to genuine multi-core execution. I built
+wraparound), run across five different substrates. I built
 this before touching Verilog because I wanted a real answer, with numbers,
 to a question I kept hand-waving past: what does "parallel" actually mean
 in software, and where does it fall short of what the FPGA fabric is going
@@ -19,8 +18,7 @@ to do?
 | 5. Numba | `tier5_numba.py` | `@njit(parallel=True)` + `prange`. JIT-compiled machine code, genuinely multi-core. |
 
 `golden_rule.py` is the one source of truth every tier gets checked
-against. Run `verify_correctness.py` before trusting any timing number —
-I got burned once by a fast-but-wrong result and I'm not doing that again.
+against. Run `verify_correctness.py` before trusting any timing number.
 
 ## What I actually found (my machine — Apple Silicon Mac, 10 cores, Python 3.11.5)
 
@@ -34,9 +32,9 @@ I got burned once by a fast-but-wrong result and I'm not doing that again.
 ¹ pure-Python nested loops get impractically slow past 64×64, so I skipped
 them there to keep the full sweep finishing in reasonable time.
 
-Every number above is the median of 5–9 repeated runs, not a single sample.
+Every number above is the median of 5–9 repeated runs.
 My first pass at this used single-shot timing and produced a genuinely
-misleading non-monotonic curve — Numba looked 50x faster on a 32×32 grid
+misleading non-monotonic curve: Numba looked 50x faster on a 32×32 grid
 than on a 16×16 one, which makes no sense on its face. Turned out that at
 these grid sizes, individual runs finish in single-digit milliseconds,
 which means the timing was picking up OS thread-scheduling noise more than
@@ -48,7 +46,7 @@ fixed it.
 
 Threads lose to serial at every single grid size, on a machine with ten
 real cores sitting mostly idle. That's the whole GIL argument, no longer
-something I have to argue for — CPython's global interpreter lock means
+something I have to argue for. CPython's global interpreter lock means
 only one thread executes Python bytecode at a time, so four threads doing
 CPU-bound pure-Python work just buys you scheduling overhead on top of the
 same single-threaded work.
@@ -63,15 +61,11 @@ does, so the relative payoff improves. It's a small-scale version of the
 exact compute-vs-communication tradeoff real distributed simulations have
 to deal with.
 
-Numba wins at every size I tested — compiled to native machine code with
+Numba wins at every size I tested. Compiled to native machine code with
 a parallelized loop, no interpreter overhead per cell once it's compiled.
 
-None of this, to be clear, is what the FPGA is actually going to do. Every
-tier here is still one or more CPU cores stepping through instructions
-sequentially per cell, just at different levels of overhead. The FPGA
-fabric (Phase 3) turns the rule into physical logic gates, instantiated
-once per cell, all evaluating at the same instant on one clock edge. That's
-a different mechanism entirely, not a faster version of any of these.
+The FPGA fabric (Phase 3) turns the rule into physical logic gates, instantiated
+once per cell, all evaluating at the same instant on one clock edge, which is a different mechanism entirely.
 
 ## Running it yourself
 
