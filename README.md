@@ -1,62 +1,63 @@
-Massively Parallel Cellular Automaton Engine
+# CELL·NET — Massively Parallel Cellular Automaton Engine
 
-A cellular automaton engine designed to run natively in parallel hardware,
-where every cell is its own independent logic unit, updating simultaneously
-on a single clock edge with a real electromechanical flip-dot display as
-the eventual output target.
+I'm building a cellular automaton engine meant to run natively in parallel
+hardware, where every cell is its own independent logic unit updating
+simultaneously on a single clock edge, with a real electromechanical
+flip-dot display as the endgame output.
 
 ![CELL·NET console running a Gosper glider gun](docs/media/cellnet_demo.gif)
 
-## The thesis
+## Why an FPGA, specifically
 
-A cellular automaton's update rule is parallel by
-construction: each cell's next state depends only on its own state and its
-eight neighbors. Running that on a CPU or GPU means visiting every cell
-sequentially (or in large-but-still-serial batches). Running it on an FPGA
-means something different: instantiate the rule as combinational logic
-*once*, then repeat that logic block once per cell across the fabric. The
-entire grid — thousands of cells — updates in **one clock cycle**.
+A cellular automaton's update rule is embarrassingly parallel almost by
+accident: a cell's next state only ever depends on itself and its eight
+neighbors. Run that on a CPU or GPU and you're still visiting every cell
+sequentially, just in bigger or smaller batches. An FPGA lets you do
+something a CPU structurally can't: write the rule as combinational logic
+once, then stamp that same logic block down once per cell across the whole
+fabric. Every cell updates on the same clock edge. Not "very fast" — at
+once.
 
-That's the whole argument for using an FPGA here instead of a
-microcontroller or GPU: not raw speed, but genuine per-cell independence
-that matches how the hardware fabric itself is built.
+That's the actual argument for using an FPGA here instead of reaching for
+a microcontroller or a GPU. It was never about raw throughput. It's that
+the hardware fabric itself is built the same way the problem is shaped.
 
-The output target follows the same logic one step further. A flip-dot
-display is a grid of bistable electromagnetic discs — one coil per pixel,
-each holding its state with **zero standing power**. That's a mechanical
-echo of the same "one independent unit per cell" idea the compute fabric is
-built on, which is why it's the display this project is aimed at rather than
-an LED matrix.
+The flip-dot display carries that same idea one step further into the
+physical world. Each pixel is a tiny bistable electromagnetic disc — one
+coil per cell, holding its state with zero standing power once flipped.
+It's a mechanical version of the exact same "one independent unit per
+cell" principle the compute side is built on, which is the real reason
+I want this project to end at flip-dots and not an LED matrix.
 
-## Current status: Phase 1 — software prototype (+ parallelism benchmark)
+## Where things stand: Phase 1 — software prototype, plus a parallelism benchmark
 
-`software_prototype/cellnet_console.html` is a self-contained, dependency-free
-console that:
+`software_prototype/cellnet_console.html` is a single self-contained HTML
+file, no dependencies, no build step. Open it in a browser and that's the
+whole thing. What's actually in it:
 
-- Implements the CA update rule as a pure function of local state only
-  (`update(alive, neighbors)`) — written deliberately so it maps 1:1 onto a
-  future Verilog module, instantiated once per cell
-- Ships five selectable rulesets (Conway, HighLife, Day & Night, Seeds, Maze)
-  — each one a different truth table, i.e. different combinational logic to
-  eventually synthesize
-- Includes a pattern bank (glider, LWSS, pulsar, R-pentomino, acorn, Gosper
-  glider gun) and free-draw
-- Renders as a flip-dot operator's console — dots physically squash-flip on
-  state change, with an optional synthesized "clack" per generation, scaled
-  to how many cells flipped
-- Has a **Displays** tab surveying real physical output media (flip-dot,
-  split-flap, VFD, Nixie, LED matrix) with honest notes on how an FPGA would
-  actually drive each one
+The core update rule, `update(alive, neighbors)`, is written as a pure
+function of local state only — no grid access, no shared variables — on
+purpose, because that function signature is exactly what becomes one
+Verilog module once this moves to hardware. Around that rule sits five
+selectable rulesets (Conway, HighLife, Day & Night, Seeds, Maze), each one
+a genuinely different truth table and therefore different combinational
+logic to eventually synthesize. There's a pattern bank — glider, LWSS,
+pulsar, R-pentomino, acorn, Gosper glider gun — plus free-draw if you want
+to seed something by hand. Visually it's built to look and feel like a
+flip-dot operator's console: dots physically squash-flip when they change
+state, and there's an optional synthesized "clack" per generation, scaled
+to how many cells actually flipped. A separate Displays tab surveys real
+physical output media — flip-dot, split-flap, VFD, Nixie, LED matrix —
+with honest notes on how an FPGA would actually drive each one, not just
+which looks coolest.
 
-`software_prototype/parallelism_ladder/` benchmarks the same CA rule across
-five software substrates — naive threads, NumPy, multiprocessing, Numba —
-to concretely demonstrate what "parallel" does and doesn't mean in software
-(including a measured GIL bottleneck) before any of it is compared to what
-the FPGA fabric does in hardware. See its own README for full results and
-methodology.
-
-Open `cellnet_console.html` directly in any browser — no build step, no
-server.
+Sitting alongside the console is `software_prototype/parallelism_ladder/`,
+which takes the exact same CA rule and benchmarks it across five different
+software substrates — naive Python threads, NumPy, multiprocessing, Numba
+— specifically to show what "parallel" does and doesn't mean once you're
+still running on a CPU, GIL included. That comparison matters precisely
+because it's the baseline the FPGA fabric eventually gets measured against.
+Full results and methodology live in that folder's own README.
 
 ## Roadmap
 
@@ -84,14 +85,14 @@ ca-fpga-engine/
 └── LICENSE
 ```
 
-## Why this project
+## Why I'm building this
 
-Built as a second-year step up from an FPGA MNIST inference accelerator —
-that project proved a pipeline could run on an FPGA; this one is about using
-the FPGA for the one thing it's uniquely suited to: true fine-grained
-parallelism, aimed at a physical output medium that shares the same design
-philosophy.
+This is the second-year step up from an FPGA MNIST inference accelerator I
+built earlier — that project proved a pipeline could run on an FPGA at
+all. This one is about actually using an FPGA for the thing it's uniquely
+good at: real fine-grained parallelism, pointed at a physical output medium
+that was built on the same idea.
 
 ## Author
 
-Saikarthik Ramakrishnan: ECE, Shiv Nadar University Delhi.
+Saikarthik Ramakrishnan — ECE, Shiv Nadar University Delhi.

@@ -1,27 +1,28 @@
 # Parallelism Ladder
 
-Same exact CA update rule (Conway's Life, B3/S23, toroidal wraparound —
-identical to `../cellnet_console.html`), benchmarked across five substrates,
-from "written the way a beginner would write it" up to genuine multi-core
-execution. Built to answer one question concretely, before any Verilog is
-written: *what does "parallel" actually mean in software, and where does it
-fall short of what the FPGA fabric will do?*
+Same exact CA update rule as the console (Conway's Life, B3/S23, toroidal
+wraparound), run across five different substrates — from the way you'd
+naively write it as a beginner up to genuine multi-core execution. I built
+this before touching Verilog because I wanted a real answer, with numbers,
+to a question I kept hand-waving past: what does "parallel" actually mean
+in software, and where does it fall short of what the FPGA fabric is going
+to do?
 
 ## The tiers
 
 | Tier | File | What it is |
 |---|---|---|
-| 1. Serial | `tier12_serial_threads.py` | Pure Python, nested loops, one thread. The baseline. |
-| 2. Threads(4) | `tier12_serial_threads.py` | Pure Python, 4 `ThreadPoolExecutor` threads. Expected to **lose** to serial — this is the GIL, measured. |
-| 3. NumPy | `tier3_numpy.py` | Vectorized neighbor-counting via `np.roll`. Fast, but still one core. |
-| 4. Multiprocessing(4) | `tier4_multiprocessing.py` | 4 real OS processes, ring-topology halo exchange every generation. Genuine parallelism. |
-| 5. Numba | `tier5_numba.py` | `@njit(parallel=True)` + `prange`. JIT-compiled machine code, real multi-core. |
+| 1. Serial | `tier12_serial_threads.py` | Pure Python, nested loops, one thread. The baseline everything else is judged against. |
+| 2. Threads(4) | `tier12_serial_threads.py` | Pure Python, 4 `ThreadPoolExecutor` threads. I expected this to lose to serial — it does, and that's the point: this is the GIL, measured instead of just asserted. |
+| 3. NumPy | `tier3_numpy.py` | Vectorized neighbor-counting via `np.roll`. Fast, but still fundamentally one core. |
+| 4. Multiprocessing(4) | `tier4_multiprocessing.py` | 4 real OS processes, ring-topology halo exchange every generation. Actual parallelism. |
+| 5. Numba | `tier5_numba.py` | `@njit(parallel=True)` + `prange`. JIT-compiled machine code, genuinely multi-core. |
 
-`golden_rule.py` is the single source of truth every tier is checked against.
-Run `verify_correctness.py` before trusting any timing — it's saved me from
-reporting a wrong-but-fast number more than once.
+`golden_rule.py` is the one source of truth every tier gets checked
+against. Run `verify_correctness.py` before trusting any timing number —
+I got burned once by a fast-but-wrong result and I'm not doing that again.
 
-## Results (Ram's machine — Apple Silicon Mac, 10 cores, Python 3.11.5)
+## What I actually found (my machine — Apple Silicon Mac, 10 cores, Python 3.11.5)
 
 | Grid | Serial | Threads(4) | NumPy | Multiprocess(4) | Numba |
 |---|---|---|---|---|---|
@@ -30,50 +31,58 @@ reporting a wrong-but-fast number more than once.
 | 64×64 | 394 gen/s | 367 gen/s | 12,565 gen/s | 2,586 gen/s | 80,503 gen/s |
 | 128×128 | skipped¹ | skipped¹ | 7,209 gen/s | 655 gen/s | 51,046 gen/s |
 
-¹ pure-Python nested loops become impractically slow past 64×64; skipped to
-keep the full sweep finishing in reasonable time.
+¹ pure-Python nested loops get impractically slow past 64×64, so I skipped
+them there to keep the full sweep finishing in reasonable time.
 
-Each number is the **median of 5–9 repeated runs**, not a single sample —
-early single-shot timings at small grid sizes were dominated by OS
-thread-scheduling noise (worse on heterogeneous P+E-core silicon) rather
-than real compute differences, and produced a misleading non-monotonic
-curve. Repeating and taking the median fixed that; see git history / commit
-messages for the before/after if you want to see the noise directly.
+Every number above is the median of 5–9 repeated runs, not a single sample.
+My first pass at this used single-shot timing and produced a genuinely
+misleading non-monotonic curve — Numba looked 50x faster on a 32×32 grid
+than on a 16×16 one, which makes no sense on its face. Turned out that at
+these grid sizes, individual runs finish in single-digit milliseconds,
+which means the timing was picking up OS thread-scheduling noise more than
+real compute differences (made worse by Apple Silicon's mixed performance
+and efficiency cores). Repeating each measurement and taking the median
+fixed it.
 
-### Reading the results
+### What the numbers actually say
 
-- **Threads lose to serial at every single grid size**, on a real 10-core
-  machine with no shortage of idle cores. That's the whole GIL argument in
-  one row of numbers: CPython's global interpreter lock means only one
-  thread executes Python bytecode at a time, so N threads doing CPU-bound
-  pure-Python work buys you scheduling overhead, not parallelism.
-- **Multiprocessing's advantage over serial grows with grid size**
-  (2.4x → 4.7x → 6.6x from 16×16 to 64×64). Real OS processes, each with
-  its own interpreter and GIL, genuinely run concurrently — but every
-  generation pays a fixed halo-exchange cost (each process ships its edge
-  rows to its neighbors over a pipe). At small grids that fixed cost
-  dominates; as the grid grows, the compute-per-process grows faster than
-  the communication cost, so the parallel tier's relative advantage
-  increases. This is the same communication-vs-compute tradeoff real
-  distributed/HPC simulations navigate.
-- **Numba wins at every size** — JIT-compiled to native machine code with a
-  parallelized loop, no Python interpreter overhead per cell at all once
-  compiled.
-- None of this is what the FPGA will do. Every tier above is still one or
-  more CPU cores executing instructions sequentially per cell, just at
-  different levels of overhead. The FPGA fabric (Phase 3) instantiates the
-  rule as physical logic, once per cell, all evaluating simultaneously on
-  one clock edge — a different mechanism, not a faster version of these.
+Threads lose to serial at every single grid size, on a machine with ten
+real cores sitting mostly idle. That's the whole GIL argument, no longer
+something I have to argue for — CPython's global interpreter lock means
+only one thread executes Python bytecode at a time, so four threads doing
+CPU-bound pure-Python work just buys you scheduling overhead on top of the
+same single-threaded work.
 
-## Reproducing
+Multiprocessing's edge over serial actually grows as the grid gets bigger
+— 2.4x at 16×16, up to 6.6x by 64×64. Each process genuinely runs
+concurrently, with its own interpreter and its own GIL, but every
+generation pays a fixed cost to ship edge rows to its neighbors over a
+pipe. At small grids that fixed cost dominates; as the grid grows, the
+compute each process is doing grows faster than the communication cost
+does, so the relative payoff improves. It's a small-scale version of the
+exact compute-vs-communication tradeoff real distributed simulations have
+to deal with.
+
+Numba wins at every size I tested — compiled to native machine code with
+a parallelized loop, no interpreter overhead per cell once it's compiled.
+
+None of this, to be clear, is what the FPGA is actually going to do. Every
+tier here is still one or more CPU cores stepping through instructions
+sequentially per cell, just at different levels of overhead. The FPGA
+fabric (Phase 3) turns the rule into physical logic gates, instantiated
+once per cell, all evaluating at the same instant on one clock edge. That's
+a different mechanism entirely, not a faster version of any of these.
+
+## Running it yourself
 
 ```bash
-python3 verify_correctness.py   # must show all PASS before trusting timings
+python3 verify_correctness.py   # should show all PASS before you trust anything
 python3 benchmark.py            # writes results.csv + ladder.png
 ```
 
-Note: `os.cpu_count()` matters a lot here — threads/multiprocessing tiers
-need real cores to show their real behavior. Numba requires NumPy ≤ its
-supported version for your installed `numba` release; if you hit an
-`ImportError` about NumPy version compatibility, `pip install --upgrade numba`
-first.
+Worth knowing: `os.cpu_count()` matters a lot for the threads and
+multiprocessing tiers to show their real behavior — I first ran this in a
+single-core sandbox and got a very different (much less interesting) story
+than on my actual laptop. Also, Numba needs a NumPy version it supports;
+if you hit an `ImportError` about NumPy compatibility, `pip install
+--upgrade numba` first before trying to downgrade NumPy.
