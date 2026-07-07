@@ -1,15 +1,15 @@
-# CELL·NET — Massively Parallel Cellular Automaton Engine
+Massively Parallel Cellular Automaton Engine
 
-A cellular automaton engine designed to run natively in parallel hardware —
+A cellular automaton engine designed to run natively in parallel hardware,
 where every cell is its own independent logic unit, updating simultaneously
-on a single clock edge — with a real electromechanical flip-dot display as
+on a single clock edge with a real electromechanical flip-dot display as
 the eventual output target.
 
 ![CELL·NET console running a Gosper glider gun](docs/media/cellnet_demo.gif)
 
 ## The thesis
 
-A cellular automaton's update rule is embarrassingly parallel by
+A cellular automaton's update rule is parallel by
 construction: each cell's next state depends only on its own state and its
 eight neighbors. Running that on a CPU or GPU means visiting every cell
 sequentially (or in large-but-still-serial batches). Running it on an FPGA
@@ -94,4 +94,4 @@ philosophy.
 
 ## Author
 
-Ram — ECE, Shiv Nadar University Delhi.
+Saikarthik Ramakrishnan: ECE, Shiv Nadar University Delhi.
