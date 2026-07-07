@@ -19,7 +19,7 @@ fabric. Every cell updates on the same clock edge. Not "very fast" at
 once.
 
 That's the actual argument for using an FPGA here instead of reaching for
-a microcontroller or a GPU.It's that the hardware fabric itself is built the same way the problem is shaped.
+a microcontroller or a GPU. It's that the hardware fabric itself is built the same way the problem is shaped.
 
 The flip-dot display carries that same idea one step further into the
 physical world. Each pixel is a tiny bistable electromagnetic disc: one
@@ -62,8 +62,8 @@ Full results and methodology live in that folder's own README.
 | Phase | Goal | Status |
 |---|---|---|
 | 1 | Software prototype — rule + visual target nailed down | ✅ done |
-| 2 | `ca_cell.v` — one cell's update rule as combinational Verilog, testbenched in isolation | ⏳ next |
-| 3 | Parallel fabric — 2D `generate` block instantiating `ca_cell` across the grid, wired to 8 neighbors with toroidal wraparound, one shared clock | planned |
+| 2 | `ca_cell.v` — one cell's update rule as combinational Verilog, testbenched in isolation | ✅ done |
+| 3 | Parallel fabric — 2D `generate` block instantiating `ca_cell` across the grid, wired to 8 neighbors with toroidal wraparound, one shared clock | ⏳ next |
 | 4 | UART streaming of live grid state off-chip to a PC visualizer | planned |
 | 5 | Flip-dot driver stage — swap the output from UART/PC to real coil-driven hardware | planned |
 | 6 | Novelty extension — continuous-state rule (Lenia-style) or a second competing species (predator/prey) | stretch |
@@ -76,7 +76,9 @@ ca-fpga-engine/
 ├── software_prototype/
 │   ├── cellnet_console.html      # Phase 1 — the console
 │   └── parallelism_ladder/       # Phase 1.5 — GIL/parallelism benchmark suite
-├── hardware/                     # Phase 2+ — Verilog lands here
+├── hardware/                      # Phase 2+ — the actual Verilog
+│   ├── rtl/ca_cell.v               # one cell, verified against golden_rule.py
+│   └── tests/                      # cocotb testbench, exhaustive over all 512 cases
 ├── docs/
 │   └── media/
 │       └── cellnet_demo.gif
