@@ -12,7 +12,7 @@ to do?
 | Tier | File | What it is |
 |---|---|---|
 | 1. Serial | `tier12_serial_threads.py` | Pure Python, nested loops, one thread. The baseline everything else is judged against. |
-| 2. Threads(4) | `tier12_serial_threads.py` | Pure Python, 4 `ThreadPoolExecutor` threads. I expected this to lose to serial — it does, and that's the point: this is the GIL, measured instead of just asserted. |
+| 2. Threads(4) | `tier12_serial_threads.py` | Pure Python, 4 `ThreadPoolExecutor` threads. I expected this to lose to serial, and it does. That's the point: this is the GIL, measured instead of just asserted. |
 | 3. NumPy | `tier3_numpy.py` | Vectorized neighbor-counting via `np.roll`. Fast, but still fundamentally one core. |
 | 4. Multiprocessing(4) | `tier4_multiprocessing.py` | 4 real OS processes, ring-topology halo exchange every generation. Actual parallelism. |
 | 5. Numba | `tier5_numba.py` | `@njit(parallel=True)` + `prange`. JIT-compiled machine code, genuinely multi-core. |
@@ -20,7 +20,7 @@ to do?
 `golden_rule.py` is the one source of truth every tier gets checked
 against. Run `verify_correctness.py` before trusting any timing number.
 
-## What I actually found (my machine — Apple Silicon Mac, 10 cores, Python 3.11.5)
+## What I actually found (my machine: Apple Silicon Mac, 10 cores, Python 3.11.5)
 
 | Grid | Serial | Threads(4) | NumPy | Multiprocess(4) | Numba |
 |---|---|---|---|---|---|
@@ -51,8 +51,8 @@ only one thread executes Python bytecode at a time, so four threads doing
 CPU-bound pure-Python work just buys you scheduling overhead on top of the
 same single-threaded work.
 
-Multiprocessing's edge over serial actually grows as the grid gets bigger
-— 2.4x at 16×16, up to 6.6x by 64×64. Each process genuinely runs
+Multiprocessing's edge over serial actually grows as the grid gets bigger,
+from 2.4x at 16×16 up to 6.6x by 64×64. Each process genuinely runs
 concurrently, with its own interpreter and its own GIL, but every
 generation pays a fixed cost to ship edge rows to its neighbors over a
 pipe. At small grids that fixed cost dominates; as the grid grows, the
@@ -75,7 +75,7 @@ python3 benchmark.py            # writes results.csv + ladder.png
 ```
 
 Worth knowing: `os.cpu_count()` matters a lot for the threads and
-multiprocessing tiers to show their real behavior — I first ran this in a
+multiprocessing tiers to show their real behavior. I first ran this in a
 single-core sandbox and got a very different (much less interesting) story
 than on my actual laptop. Also, Numba needs a NumPy version it supports;
 if you hit an `ImportError` about NumPy compatibility, `pip install

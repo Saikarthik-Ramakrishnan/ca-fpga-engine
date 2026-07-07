@@ -35,24 +35,24 @@ file, no dependencies, no build step. Open it in a browser and that's the
 whole thing. What's actually in it:
 
 The core update rule, `update(alive, neighbors)`, is written as a pure
-function of local state only: no grid access, no shared variables — on
+function of local state only: no grid access, no shared variables, done on
 purpose, because that function signature is exactly what becomes one
 Verilog module once this moves to hardware. Around that rule sits five
 selectable rulesets (Conway, HighLife, Day & Night, Seeds, Maze), each one
 a genuinely different truth table and therefore different combinational
-logic to eventually synthesize. There's a pattern bank — glider, LWSS,
-pulsar, R-pentomino, acorn, Gosper glider gun plus free-draw if you want
+logic to eventually synthesize. There's a pattern bank (glider, LWSS,
+pulsar, R-pentomino, acorn, Gosper glider gun) plus free-draw if you want
 to seed something by hand. Visually it's built to look and feel like a
 flip-dot operator's console: dots physically squash-flip when they change
 state, and there's an optional synthesized "clack" per generation, scaled
 to how many cells actually flipped. A separate Displays tab surveys real
-physical output media — flip-dot, split-flap, VFD, Nixie, LED matrix —
+physical output media (flip-dot, split-flap, VFD, Nixie, LED matrix)
 with honest notes on how an FPGA would actually drive each one.
 
 Sitting alongside the console is `software_prototype/parallelism_ladder/`,
 which takes the exact same CA rule and benchmarks it across five different
-software substrates — naive Python threads, NumPy, multiprocessing, Numba
-— specifically to show what "parallel" does and doesn't mean once you're
+software substrates (naive Python threads, NumPy, multiprocessing, Numba),
+specifically to show what "parallel" does and doesn't mean once you're
 still running on a CPU, GIL included. That comparison matters precisely
 because it's the baseline the FPGA fabric eventually gets measured against.
 Full results and methodology live in that folder's own README.
@@ -61,12 +61,12 @@ Full results and methodology live in that folder's own README.
 
 | Phase | Goal | Status |
 |---|---|---|
-| 1 | Software prototype — rule + visual target nailed down | ✅ done |
-| 2 | `ca_cell.v` — one cell's update rule as combinational Verilog, testbenched in isolation | ✅ done |
-| 3 | Parallel fabric — 2D `generate` block instantiating `ca_cell` across the grid, wired to 8 neighbors with toroidal wraparound, one shared clock | ⏳ next |
+| 1 | Software prototype: rule + visual target nailed down | ✅ done |
+| 2 | `ca_cell.v`: one cell's update rule as combinational Verilog, testbenched in isolation | ✅ done |
+| 3 | Parallel fabric: 2D `generate` block instantiating `ca_cell` across the grid, wired to 8 neighbors with toroidal wraparound, one shared clock | ⏳ next |
 | 4 | UART streaming of live grid state off-chip to a PC visualizer | planned |
-| 5 | Flip-dot driver stage — swap the output from UART/PC to real coil-driven hardware | planned |
-| 6 | Novelty extension — continuous-state rule (Lenia-style) or a second competing species (predator/prey) | stretch |
+| 5 | Flip-dot driver stage: swap the output from UART/PC to real coil-driven hardware | planned |
+| 6 | Novelty extension: continuous-state rule (Lenia-style) or a second competing species (predator/prey) | stretch |
 
 ## Repo structure
 
@@ -74,9 +74,9 @@ Full results and methodology live in that folder's own README.
 ca-fpga-engine/
 ├── README.md
 ├── software_prototype/
-│   ├── cellnet_console.html      # Phase 1 — the console
-│   └── parallelism_ladder/       # Phase 1.5 — GIL/parallelism benchmark suite
-├── hardware/                      # Phase 2+ — the actual Verilog
+│   ├── cellnet_console.html      # Phase 1: the console
+│   └── parallelism_ladder/       # Phase 1.5: GIL/parallelism benchmark suite
+├── hardware/                      # Phase 2+: the actual Verilog
 │   ├── rtl/ca_cell.v               # one cell, verified against golden_rule.py
 │   └── tests/                      # cocotb testbench, exhaustive over all 512 cases
 ├── docs/
@@ -88,11 +88,11 @@ ca-fpga-engine/
 ## Motivation
 
 This is the second-year step up from an FPGA MNIST inference accelerator I
-built earlier — that project proved a pipeline could run on an FPGA at
+built earlier. That project proved a pipeline could run on an FPGA at
 all. This one is about actually using an FPGA for the thing it's uniquely
 good at: real fine-grained parallelism, pointed at a physical output medium
 that was built on the same idea.
 
 ## Author
 
-Saikarthik Ramakrishnan — ECE, Shiv Nadar University Delhi.
+Saikarthik Ramakrishnan, ECE, Shiv Nadar University Delhi.
