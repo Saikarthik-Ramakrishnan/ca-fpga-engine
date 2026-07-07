@@ -7,7 +7,7 @@ flip-dot display as the endgame output.
 
 ![CELL·NET console running a Gosper glider gun](docs/media/cellnet_demo.gif)
 
-## Why an FPGA, specifically
+## Why use an FPGA here?
 
 A cellular automaton's update rule is embarrassingly parallel almost by
 accident: a cell's next state only ever depends on itself and its eight
