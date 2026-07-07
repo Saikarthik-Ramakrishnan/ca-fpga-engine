@@ -15,14 +15,14 @@ neighbors. Run that on a CPU or GPU and you're still visiting every cell
 sequentially, just in bigger or smaller batches. An FPGA lets you do
 something a CPU structurally can't: write the rule as combinational logic
 once, then stamp that same logic block down once per cell across the whole
-fabric. Every cell updates on the same clock edge. Not "very fast" — at
+fabric. Every cell updates on the same clock edge. Not "very fast" at
 once.
 
 That's the actual argument for using an FPGA here instead of reaching for
 a microcontroller or a GPU.It's that the hardware fabric itself is built the same way the problem is shaped.
 
 The flip-dot display carries that same idea one step further into the
-physical world. Each pixel is a tiny bistable electromagnetic disc — one
+physical world. Each pixel is a tiny bistable electromagnetic disc: one
 coil per cell, holding its state with zero standing power once flipped.
 It's a mechanical version of the exact same "one independent unit per
 cell" principle the compute side is built on, which is the real reason
@@ -35,20 +35,19 @@ file, no dependencies, no build step. Open it in a browser and that's the
 whole thing. What's actually in it:
 
 The core update rule, `update(alive, neighbors)`, is written as a pure
-function of local state only — no grid access, no shared variables — on
+function of local state only: no grid access, no shared variables — on
 purpose, because that function signature is exactly what becomes one
 Verilog module once this moves to hardware. Around that rule sits five
 selectable rulesets (Conway, HighLife, Day & Night, Seeds, Maze), each one
 a genuinely different truth table and therefore different combinational
 logic to eventually synthesize. There's a pattern bank — glider, LWSS,
-pulsar, R-pentomino, acorn, Gosper glider gun — plus free-draw if you want
+pulsar, R-pentomino, acorn, Gosper glider gun plus free-draw if you want
 to seed something by hand. Visually it's built to look and feel like a
 flip-dot operator's console: dots physically squash-flip when they change
 state, and there's an optional synthesized "clack" per generation, scaled
 to how many cells actually flipped. A separate Displays tab surveys real
 physical output media — flip-dot, split-flap, VFD, Nixie, LED matrix —
-with honest notes on how an FPGA would actually drive each one, not just
-which looks coolest.
+with honest notes on how an FPGA would actually drive each one.
 
 Sitting alongside the console is `software_prototype/parallelism_ladder/`,
 which takes the exact same CA rule and benchmarks it across five different
