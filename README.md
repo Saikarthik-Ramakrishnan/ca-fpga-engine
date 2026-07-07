@@ -28,7 +28,7 @@ echo of the same "one independent unit per cell" idea the compute fabric is
 built on, which is why it's the display this project is aimed at rather than
 an LED matrix.
 
-## Current status: Phase 1 — software prototype
+## Current status: Phase 1 — software prototype (+ parallelism benchmark)
 
 `software_prototype/cellnet_console.html` is a self-contained, dependency-free
 console that:
@@ -48,7 +48,15 @@ console that:
   split-flap, VFD, Nixie, LED matrix) with honest notes on how an FPGA would
   actually drive each one
 
-Open the HTML file directly in any browser — no build step, no server.
+`software_prototype/parallelism_ladder/` benchmarks the same CA rule across
+five software substrates — naive threads, NumPy, multiprocessing, Numba —
+to concretely demonstrate what "parallel" does and doesn't mean in software
+(including a measured GIL bottleneck) before any of it is compared to what
+the FPGA fabric does in hardware. See its own README for full results and
+methodology.
+
+Open `cellnet_console.html` directly in any browser — no build step, no
+server.
 
 ## Roadmap
 
@@ -67,8 +75,9 @@ Open the HTML file directly in any browser — no build step, no server.
 ca-fpga-engine/
 ├── README.md
 ├── software_prototype/
-│   └── cellnet_console.html   # Phase 1 — this is the current deliverable
-├── hardware/                  # Phase 2+ — Verilog lands here
+│   ├── cellnet_console.html      # Phase 1 — the console
+│   └── parallelism_ladder/       # Phase 1.5 — GIL/parallelism benchmark suite
+├── hardware/                     # Phase 2+ — Verilog lands here
 ├── docs/
 │   └── media/
 │       └── cellnet_demo.gif
