@@ -63,8 +63,8 @@ Full results and methodology live in that folder's own README.
 |---|---|---|
 | 1 | Software prototype: rule + visual target nailed down | ✅ done |
 | 2 | `ca_cell.v`: one cell's update rule as combinational Verilog, testbenched in isolation | ✅ done |
-| 3 | Parallel fabric: 2D `generate` block instantiating `ca_cell` across the grid, wired to 8 neighbors with toroidal wraparound, one shared clock | ⏳ next |
-| 4 | UART streaming of live grid state off-chip to a PC visualizer | planned |
+| 3 | Parallel fabric: 2D `generate` block instantiating `ca_cell` across the grid, wired to 8 neighbors with toroidal wraparound, one shared clock | ✅ done |
+| 4 | UART streaming of live grid state off-chip to a PC visualizer | ⏳ next |
 | 5 | Flip-dot driver stage: swap the output from UART/PC to real coil-driven hardware | planned |
 | 6 | Novelty extension: continuous-state rule (Lenia-style) or a second competing species (predator/prey) | stretch |
 
@@ -78,7 +78,8 @@ ca-fpga-engine/
 │   └── parallelism_ladder/       # Phase 1.5: GIL/parallelism benchmark suite
 ├── hardware/                      # Phase 2+: the actual Verilog
 │   ├── rtl/ca_cell.v               # one cell, verified against golden_rule.py
-│   └── tests/                      # cocotb testbench, exhaustive over all 512 cases
+│   ├── rtl/ca_grid.v               # N cells wired into a real grid
+│   └── tests/                      # cocotb testbenches, cell + grid
 ├── docs/
 │   └── media/
 │       └── cellnet_demo.gif

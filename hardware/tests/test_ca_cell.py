@@ -42,6 +42,8 @@ async def exhaustive_truth_table(dut):
     # hold reset once at the start
     dut.rst_n.value = 0
     dut.neighbors.value = 0
+    dut.load.value = 0        # exercising the rule path, not the seed path
+    dut.seed_bit.value = 0
     await RisingEdge(dut.clk)
     dut.rst_n.value = 1
     await RisingEdge(dut.clk)
@@ -85,3 +87,45 @@ async def exhaustive_truth_table(dut):
         )
 
     dut._log.info(f"All {checked} cases match golden_rule.update(). ca_cell.v is correct.")
+
+
+@cocotb.test()
+async def load_path_overrides_rule(dut):
+    """The exhaustive test above holds load=0 the whole time, so it never
+    touches the seed path. Check that separately: when load=1, the cell
+    must take seed_bit regardless of what the rule would have computed."""
+    clock = Clock(dut.clk, 10, unit="ns")
+    cocotb.start_soon(clock.start())
+
+    dut.rst_n.value = 0
+    dut.neighbors.value = 0
+    dut.load.value = 0
+    dut.seed_bit.value = 0
+    await RisingEdge(dut.clk)
+    dut.rst_n.value = 1
+    await RisingEdge(dut.clk)
+
+    # set up a case where the rule would clearly say "stay dead"
+    # (0 neighbors alive, cell dead -> rule says stay 0), then load a 1
+    # over it and confirm the load wins.
+    dut.state.value = 0
+    dut.neighbors.value = 0
+    dut.load.value = 1
+    dut.seed_bit.value = 1
+    await RisingEdge(dut.clk)
+    await ReadOnly()
+    assert int(dut.state.value) == 1, (
+        "load=1 should force state to seed_bit regardless of the rule result"
+    )
+    await Timer(1, unit="ns")
+
+    # now drop load and confirm the rule takes back over on the next edge
+    dut.load.value = 0
+    dut.neighbors.value = 0  # 0 neighbors, cell currently alive -> rule kills it
+    await RisingEdge(dut.clk)
+    await ReadOnly()
+    assert int(dut.state.value) == 0, (
+        "once load=0, the rule should resume controlling next state"
+    )
+
+    dut._log.info("Load path verified: overrides the rule when high, releases control when low.")

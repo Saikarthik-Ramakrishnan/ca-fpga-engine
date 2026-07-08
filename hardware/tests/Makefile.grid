@@ -1,0 +1,9 @@
+SIM ?= icarus
+TOPLEVEL_LANG ?= verilog
+
+VERILOG_SOURCES += $(PWD)/../rtl/ca_cell.v
+VERILOG_SOURCES += $(PWD)/../rtl/ca_grid.v
+TOPLEVEL = ca_grid
+MODULE = test_ca_grid
+
+include $(shell cocotb-config --makefiles)/Makefile.sim

@@ -15,12 +15,19 @@
 // "3 neighbors are alive", it knows 8 individual wire states and computes
 // the count itself. Keeping that boundary honest here makes Phase 3
 // (wiring N^2 of these together) a mechanical copy-paste, not a redesign.
+//
+// The `load`/`seed_bit` pair lets an initial pattern be written into the
+// cell's register: when `load` is high on a clock edge, the cell takes
+// `seed_bit` instead of the computed rule result. That's how the grid gets
+// seeded with a glider, a random soup, etc. before free-running.
 
 module ca_cell (
     input  wire       clk,
-    input  wire        rst_n,      // active-low async reset
-    input  wire [7:0]  neighbors,  // 8 neighbor states, one bit each
-    output reg         state       // this cell's current (registered) state
+    input  wire       rst_n,      // active-low async reset
+    input  wire [7:0] neighbors,  // 8 neighbor states, one bit each
+    input  wire       load,       // when high, take seed_bit instead of the rule
+    input  wire       seed_bit,   // initial value to load
+    output reg        state       // this cell's current (registered) state
 );
 
     // --- neighbor count: an 8-input popcount, done with plain addition.
@@ -38,8 +45,11 @@ module ca_cell (
     // if/else specifically so a different ruleset (HighLife, Day & Night,
     // Seeds, Maze -- same ones in the console's rule bank) is a one-line
     // change to the two comparisons below, not a redesign.
-    wire next_state = state ? (count == 4'd2 || count == 4'd3)
-                            : (count == 4'd3);
+    wire rule_next = state ? (count == 4'd2 || count == 4'd3)
+                           : (count == 4'd3);
+
+    // load mux: seeding takes priority over the rule when `load` is high.
+    wire next_state = load ? seed_bit : rule_next;
 
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n)
