@@ -22,9 +22,7 @@ The hardware fabric mirrors the shape of the problem.
 
 The flip-dot display extends the same idea into the physical world. Each
 pixel is a bistable electromagnetic disc: one coil per cell, holding its
-state with zero standing power once flipped. Same "one independent unit
-per cell" principle, expressed mechanically. That's why this project ends
-at flip-dots and not an LED matrix.
+state with zero standing power once flipped. 
 
 ## Phase 1: software prototype and parallelism benchmark
 
