@@ -47,9 +47,8 @@ What's in it:
 
 `software_prototype/parallelism_ladder/` benchmarks the same CA rule
 across five software substrates: naive Python threads, NumPy,
-multiprocessing, Numba. It shows what "parallel" does and doesn't mean on
-a CPU, GIL included, as the baseline the FPGA fabric gets measured against.
-Full results in that folder's README.
+multiprocessing, Numba.
+Full results are there in that folder's README.
 
 ## Roadmap
 
