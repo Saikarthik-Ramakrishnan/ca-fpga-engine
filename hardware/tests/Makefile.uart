@@ -1,0 +1,9 @@
+SIM ?= icarus
+TOPLEVEL_LANG ?= verilog
+
+VERILOG_SOURCES += $(PWD)/../rtl/uart_tx.v
+TOPLEVEL = uart_tx
+MODULE = test_uart_tx
+COMPILE_ARGS += -Puart_tx.CLKS_PER_BIT=4
+
+include $(shell cocotb-config --makefiles)/Makefile.sim
