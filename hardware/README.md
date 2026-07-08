@@ -75,11 +75,6 @@ lands close to the earlier single-cell estimate. The ~17x17 to ~22x22
 realistic grid ceiling on the Primer 20K (out of its ~20,736 LUT4 budget)
 holds up, not just as a single-cell guess.
 
-## Next: Phase 4
-
-Stream live grid state off-chip over UART to a PC visualizer, so a real
-FPGA running this can be watched directly.
-
 # Phase 4: uart_tx.v, grid_streamer.v, cellnet_top.v
 
 Getting live grid data off the chip. Three new pieces:
@@ -134,43 +129,4 @@ make -f Makefile.uart   # uart_tx alone
 make -f Makefile.top    # the whole chip, end to end
 ```
 
-## Two real bugs, both worth knowing about
-
-**Parameter override silently ignored.** The first `uart_tx` test run
-failed nearly every byte. The Python testbench set `CLKS_PER_BIT = 4` as
-a plain variable, but never actually told Icarus to use that value for
-the hardware itself, so the DUT kept running at its Verilog-side default
-of 234. Two numbers with the same name, only one of them real. Fixed by
-passing `-Puart_tx.CLKS_PER_BIT=4` to Icarus through `COMPILE_ARGS` in the
-Makefile.
-
-**A glider's periodicity broke the ordering check, correctly.** The first
-full-chip test seeded a glider, which on a small torus loops forever and
-exactly repeats its own trajectory. The test's original correctness check
-found each frame's generation by its first matching occurrence in the
-golden log, which breaks the moment a pattern repeats: a much later frame
-can validly match an earlier occurrence than a previous frame did, simply
-because the automaton looped around. The fix checks something more
-honest: does there exist some non-decreasing assignment of generation
-numbers to the frames observed. There's also a real, permanent one-cycle
-quirk worth knowing: the very first frame off the wire is legitimately
-all-zero, since `grid_streamer` takes its first snapshot the instant reset
-releases, one cycle before the seed value actually lands in `ca_grid`.
-Both are documented directly in `test_cellnet_top.py`, not hidden.
-
-## What synthesis actually costs
-
-The whole chip (`cellnet_top`, grid + streamer + UART) comes to 1,746
-Yosys cells: 176 flip-flops total (64 for the grid's cell registers, the
-rest for the streamer's snapshot register and the UART's counters), plus
-300 ALU and the rest LUTs and wide muxes. The full-chip total came in
-lower than the grid alone synthesized in isolation, which suggests global
-synthesis found sharing opportunities across the module boundaries that a
-per-module synthesis run can't see. Worth confirming with real
-place-and-route once the board is in hand rather than treating that as
-settled.
-
-## Next: Phase 5
-
-Swap the output from UART/PC to a real coil-driven flip-dot panel.
 
