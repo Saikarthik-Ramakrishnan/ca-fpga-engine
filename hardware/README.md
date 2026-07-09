@@ -129,4 +129,22 @@ make -f Makefile.uart   # uart_tx alone
 make -f Makefile.top    # the whole chip, end to end
 ```
 
+## Watching it run
+
+`hardware/tests/demos/` captures real decoded UART frames from a live
+simulation run and renders them into a GIF, styled like the console. Not
+a correctness test, just a way to actually watch Phase 4 work: every
+frame comes from decoding `tx_serial` bit by bit, the same way a real PC
+receiver would, not from reading the simulated grid's internal state
+directly.
+
+```bash
+cd hardware/tests
+PYTHONPATH="$(pwd)/demos:$PYTHONPATH" make -f Makefile.top MODULE=demo_capture
+cd demos
+python3 render_capture.py
+```
+
+Writes `phase4_live_capture.gif` into `hardware/tests/demos/`.
+
 
