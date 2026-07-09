@@ -385,6 +385,7 @@
   <div class="bar-right">
     <div class="tabs">
       <button class="tab active" data-view="engine">Engine</button>
+      <button class="tab" data-view="live">Live</button>
       <button class="tab" data-view="displays">Displays</button>
     </div>
     <div class="sound-toggle" id="soundToggle"><span class="led"></span>Clack</div>
@@ -451,6 +452,79 @@
             <input type="range" id="density" min="5" max="60" value="28">
           </div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ LIVE ============ -->
+  <div class="view" id="view-live">
+    <p class="thesis">
+      This board reads real data, not its own simulation. Either
+      <b>replay a capture</b> from the simulated chip (no hardware needed,
+      works right now) or <b>connect real hardware</b> once the FPGA is
+      flashed, over the same 0xAA-sync-byte protocol <code>grid_streamer.v</code>
+      actually sends.
+    </p>
+
+    <div class="board-shell">
+      <div class="blind">
+        <span class="route" id="liveSourceLabel">NO SOURCE</span>
+        <span class="dest" id="liveFrameLabel">FRAME 0 / 0</span>
+      </div>
+      <div class="board-frame">
+        <div class="board" id="liveBoard"></div>
+      </div>
+    </div>
+
+    <div class="console">
+      <div class="console-section">
+        <div class="sec-label">Replay a capture, no hardware needed</div>
+        <div class="btn-row">
+          <label class="pbtn" style="cursor:pointer;">
+            Load uart_capture.json
+            <input type="file" id="captureFile" accept="application/json" style="display:none;">
+          </label>
+          <button class="pbtn" id="replayPlayBtn"><span class="led"></span>Play</button>
+          <button class="pbtn" id="replayStepBtn">Step</button>
+        </div>
+        <p style="font-size:11px;color:var(--muted);margin-top:10px;line-height:1.6;">
+          Generate one with <code>demo_capture.py</code> in <code>hardware/tests/demos/</code>,
+          then load it here. Every frame shown is decoded straight off the
+          simulated wire, not read from the golden model directly.
+        </p>
+      </div>
+
+      <div class="console-section">
+        <div class="sec-label">Connect real hardware, Web Serial</div>
+        <div class="btn-row">
+          <button class="pbtn" id="connectSerialBtn">Connect</button>
+          <span id="serialStatus" style="font-size:11px;color:var(--muted);">Not connected</span>
+        </div>
+        <div class="dials" style="margin-top:14px;">
+          <div class="dial">
+            <div class="dl"><span>Grid rows</span></div>
+            <input type="number" id="hwRows" value="8" min="1" max="32"
+              style="width:100%;background:var(--recess);color:var(--text);border:1px solid #000;border-radius:5px;padding:6px;">
+          </div>
+          <div class="dial">
+            <div class="dl"><span>Grid cols</span></div>
+            <input type="number" id="hwCols" value="8" min="1" max="32"
+              style="width:100%;background:var(--recess);color:var(--text);border:1px solid #000;border-radius:5px;padding:6px;">
+          </div>
+          <div class="dial">
+            <div class="dl"><span>Baud rate</span></div>
+            <input type="number" id="hwBaud" value="115200" step="1"
+              style="width:100%;background:var(--recess);color:var(--text);border:1px solid #000;border-radius:5px;padding:6px;">
+          </div>
+        </div>
+        <p style="font-size:11px;color:var(--muted);margin-top:10px;line-height:1.6;">
+          Needs Chrome or Edge, and a secure context. Opening this file
+          directly (<code>file://</code>) may block Web Serial silently; if
+          Connect does nothing, serve it locally instead
+          (<code>python3 -m http.server</code>) and open via
+          <code>http://localhost:8000</code>. Rows/cols must match whatever
+          <code>cellnet_top.v</code> was actually synthesized with.
+        </p>
       </div>
     </div>
   </div>
@@ -765,6 +839,131 @@ document.getElementById('soundToggle').onclick = function(){
   if(soundOn && !audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)();
 };
 
+// ============ LIVE TAB ============
+// Bit values here can be up to 64 bits (an 8x8 grid). Regular JS numbers
+// and bitwise operators only work reliably up to 32 bits, and JSON.parse
+// silently loses precision on integers past 2^53 -- so everything here
+// uses BigInt, and the capture file stores frames as hex strings rather
+// than raw JSON numbers, specifically to avoid that precision loss.
+
+const liveBoard = document.getElementById('liveBoard');
+const liveSourceLabel = document.getElementById('liveSourceLabel');
+const liveFrameLabel = document.getElementById('liveFrameLabel');
+let liveCells = [];
+let liveRows = 0, liveCols = 0;
+
+function setupLiveBoard(rows, cols){
+  liveRows = rows; liveCols = cols;
+  liveBoard.innerHTML = '';
+  liveBoard.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+  liveBoard.style.width = 'min(340px, 76vw)';
+  liveBoard.style.height = 'min(340px, 76vw)';
+  liveCells = [];
+  for(let i=0;i<rows*cols;i++){
+    const d = document.createElement('div');
+    d.className = 'dot';
+    liveBoard.appendChild(d);
+    liveCells.push(d);
+  }
+}
+
+function paintLiveFrame(bitsBig){
+  for(let i=0;i<liveCells.length;i++){
+    const on = ((bitsBig >> BigInt(i)) & 1n) === 1n;
+    liveCells[i].classList.toggle('on', on);
+  }
+}
+
+// ---- replay a captured file ----
+let replayFrames = [];
+let replayIndex = 0;
+let replayPlaying = false;
+let replayTimer = null;
+
+document.getElementById('captureFile').addEventListener('change', async (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  const text = await file.text();
+  const data = JSON.parse(text);
+  replayFrames = data.frames.map(f => typeof f === 'string' ? BigInt(f) : BigInt(f));
+  replayIndex = 0;
+  setupLiveBoard(data.rows, data.cols);
+  paintLiveFrame(replayFrames[0]);
+  liveSourceLabel.textContent = 'REPLAY · ' + file.name.toUpperCase();
+  liveFrameLabel.textContent = `FRAME 1 / ${replayFrames.length}`;
+});
+
+function replayStep(){
+  if(replayFrames.length === 0) return;
+  replayIndex = (replayIndex + 1) % replayFrames.length;
+  paintLiveFrame(replayFrames[replayIndex]);
+  liveFrameLabel.textContent = `FRAME ${replayIndex+1} / ${replayFrames.length}`;
+}
+
+document.getElementById('replayStepBtn').onclick = replayStep;
+document.getElementById('replayPlayBtn').onclick = function(){
+  replayPlaying = !replayPlaying;
+  this.classList.toggle('live', replayPlaying);
+  this.childNodes[1].textContent = replayPlaying ? 'Pause' : 'Play';
+  if(replayPlaying){
+    replayTimer = setInterval(replayStep, 350);
+  } else {
+    clearInterval(replayTimer);
+  }
+};
+
+// ---- connect real hardware over Web Serial ----
+document.getElementById('connectSerialBtn').onclick = async ()=>{
+  const statusEl = document.getElementById('serialStatus');
+  if(!('serial' in navigator)){
+    statusEl.textContent = 'Web Serial not available in this browser (try Chrome/Edge, and check you\'re not on file://)';
+    return;
+  }
+  try{
+    const rows = parseInt(document.getElementById('hwRows').value, 10);
+    const cols = parseInt(document.getElementById('hwCols').value, 10);
+    const baud = parseInt(document.getElementById('hwBaud').value, 10);
+    const numBytes = (rows * cols) / 8;
+
+    const port = await navigator.serial.requestPort();
+    await port.open({ baudRate: baud });
+    statusEl.textContent = 'Connected, waiting for frames...';
+    liveSourceLabel.textContent = 'LIVE · FPGA';
+    setupLiveBoard(rows, cols);
+
+    const reader = port.readable.getReader();
+    const SYNC = 0xAA;
+    let state = 'seek_sync';   // 'seek_sync' | 'collecting'
+    let collected = [];
+    let frameCount = 0;
+
+    while(true){
+      const { value, done } = await reader.read();
+      if(done) break;
+      for(const byte of value){
+        if(state === 'seek_sync'){
+          if(byte === SYNC) state = 'collecting';
+        } else {
+          collected.push(byte);
+          if(collected.length === numBytes){
+            let bits = 0n;
+            for(let i=0;i<collected.length;i++){
+              bits |= BigInt(collected[i]) << BigInt(i*8);
+            }
+            paintLiveFrame(bits);
+            frameCount++;
+            liveFrameLabel.textContent = `FRAME ${frameCount} · LIVE`;
+            collected = [];
+            state = 'seek_sync';
+          }
+        }
+      }
+    }
+  } catch(err){
+    statusEl.textContent = 'Connection failed: ' + err.message;
+  }
+};
+
 // ---- tabs ----
 document.querySelectorAll('.tab').forEach(t=>{
   t.onclick=()=>{
@@ -818,6 +1017,7 @@ setInterval(()=>{
 
 // boot
 randomize();
+setupLiveBoard(8, 8);
 </script>
 </body>
 </html>

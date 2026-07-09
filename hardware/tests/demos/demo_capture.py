@@ -80,6 +80,14 @@ async def capture_live_stream(dut):
 
     out_path = os.path.join(os.path.dirname(__file__), "uart_capture.json")
     with open(out_path, "w") as f:
-        json.dump({"rows": ROWS, "cols": COLS, "frames": frames}, f)
+        # frame values go up to 2^64, and JavaScript's JSON.parse silently
+        # loses precision on integers past 2^53 (JS numbers are IEEE754
+        # doubles). Writing hex strings instead keeps every bit intact for
+        # whatever eventually reads this file, in Python or JS.
+        json.dump({
+            "rows": ROWS,
+            "cols": COLS,
+            "frames": [f"0x{v:016x}" for v in frames],
+        }, f)
 
     dut._log.info(f"Captured {len(frames)} real frames off tx_serial, wrote {out_path}")

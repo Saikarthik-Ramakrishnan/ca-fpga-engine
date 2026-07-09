@@ -57,6 +57,7 @@ def main():
         data = json.load(f)
 
     rows, cols, frames = data["rows"], data["cols"], data["frames"]
+    frames = [int(f, 16) if isinstance(f, str) else f for f in frames]
     if not frames:
         raise SystemExit("uart_capture.json has no frames, run demo_capture.py first")
 
