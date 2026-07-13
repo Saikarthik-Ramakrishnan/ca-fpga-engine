@@ -66,14 +66,26 @@ neighbor bit-packing were correct on the first attempt.
 
 ## What synthesis actually costs
 
-Yosys's Gowin-targeted synthesis pass (`synth_gowin`) gives real primitive
-counts for the 8x8 grid: 64 DFFC (one register per cell, as expected), 256
-ALU (exactly 4 per cell, matching a single cell's isolated synthesis).
+An earlier estimate here put the maximum grid at roughly 17x17 to 22x22,
+based on a measured cost of ~66 LUT4-equivalents per cell. That number was
+correct, and it was measuring a badly mapped circuit.
 
-Working through the LUT-equivalent math, real usage per cell at this scale
-lands close to the earlier single-cell estimate. The ~17x17 to ~22x22
-realistic grid ceiling on the Primer 20K (out of its ~20,736 LUT4 budget)
-holds up, not just as a single-cell guess.
+`synth_gowin`'s default mapping was building a tree of wide muxes to
+implement the neighbor-count comparison. On Gowin parts those cost 2, 4, and
+8 LUT4s each, and they dominated the whole design. Passing `-nowidelut`
+forbids that mapping and drops the cost to **~13.6 LUT4 per cell, a 4.9x
+saving**, verified at every grid size.
+
+The real ceiling is **38x38** (95% of the LUT budget), not 22x22. 32x32 sits
+at a comfortable 67% and is the safer first target to actually flash.
+
+The optimization was verified behavior-preserving, not just smaller: the
+grid testbench passes against the actual synthesized gate-level netlist,
+using Gowin's own primitive models. Critical path is 11 logic levels and is
+independent of grid size, so a bigger grid costs area but not clock speed.
+
+Full methodology, numbers, and post-synthesis verification in
+[`hardware/synth/README.md`](synth/README.md).
 
 # Phase 4: uart_tx.v, grid_streamer.v, cellnet_top.v
 

@@ -50,6 +50,36 @@ across five software substrates: naive Python threads, NumPy,
 multiprocessing, Numba.
 Full results are there in that folder's README.
 
+## What actually fits on the chip
+
+The design is verified in simulation and analyzed against the real target
+(Gowin GW2A-18, Tang Primer 20K: 20,736 LUT4).
+
+An early estimate put the maximum grid at about 22x22, based on a measured
+~66 LUT4-equivalents per cell. Investigating why one 9-input boolean
+function was costing 66 LUTs turned up the real cause: `synth_gowin`'s
+default mapping builds a tree of wide muxes (which cost 2, 4, and 8 LUT4s
+each) for the neighbor-count comparison. Forbidding that with `-nowidelut`
+drops the cost to **13.6 LUT4 per cell, a 4.9x saving**.
+
+| | per cell | max grid on GW2A-18 |
+|---|---|---|
+| default mapping | 66 LUT4 | ~22x22 |
+| `-nowidelut` | 13.6 LUT4 | **38x38** |
+
+Two things make this trustworthy rather than just a smaller number:
+
+- The optimized design was verified **at the gate level**. The grid
+  testbench runs against the actual synthesized netlist, using Gowin's own
+  primitive models, and matches `golden_rule.py` bit for bit.
+- Critical path is 11 logic levels and is **independent of grid size**,
+  since every cell reads registers and writes registers, so no signal
+  crosses more than one cell per clock. Growing the grid costs area, not
+  clock speed. Software doing the same work gets linearly slower; this
+  does not.
+
+Details and methodology: [`hardware/synth/README.md`](hardware/synth/README.md).
+
 ## Roadmap
 
 | Phase | Goal | Status |
@@ -75,6 +105,7 @@ ca-fpga-engine/
 │   ├── rtl/uart_tx.v               # sends one byte over one wire
 │   ├── rtl/grid_streamer.v         # snapshots the grid, feeds uart_tx
 │   ├── rtl/cellnet_top.v           # the whole chip
+│   ├── synth/                      # resource analysis, gate-level verification
 │   └── tests/                      # cocotb testbenches for every module above
 ├── docs/
 │   └── media/

@@ -1,0 +1,18 @@
+SIM ?= icarus
+TOPLEVEL_LANG ?= verilog
+
+# Post-synthesis verification: instead of simulating the RTL, simulate the
+# ACTUAL gate-level netlist that synth_gowin -nowidelut produced, wired up
+# with Gowin's own primitive simulation models. If the real mapped gates
+# pass the same tests the RTL passes, the optimization provably didn't
+# change behavior.
+#
+# Generate the netlist first:
+#   cd hardware/synth && python3 emit_netlist.py
+VERILOG_SOURCES += /usr/share/yosys/gowin/cells_sim.v
+VERILOG_SOURCES += $(PWD)/../synth/build/ca_grid_netlist.v
+
+TOPLEVEL = ca_grid
+MODULE = test_ca_grid
+
+include $(shell cocotb-config --makefiles)/Makefile.sim
