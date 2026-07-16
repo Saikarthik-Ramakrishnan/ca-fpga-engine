@@ -3,7 +3,7 @@
 node_modules/
 __pycache__/
 *.pyc
-sim_build/
+sim_build*/
 results.xml
 hardware/tests/demos/uart_capture.json
 hardware/tests/demos/phase4_live_capture.gif
