@@ -1,0 +1,24 @@
+SIM ?= icarus
+TOPLEVEL_LANG ?= verilog
+
+VERILOG_SOURCES += $(PWD)/../rtl/ca_cell.v
+VERILOG_SOURCES += $(PWD)/../rtl/ca_grid.v
+VERILOG_SOURCES += $(PWD)/../rtl/uart_tx.v
+VERILOG_SOURCES += $(PWD)/../rtl/uart_rx.v
+VERILOG_SOURCES += $(PWD)/../rtl/seed_loader.v
+VERILOG_SOURCES += $(PWD)/../rtl/grid_streamer.v
+VERILOG_SOURCES += $(PWD)/../rtl/cellnet_top.v
+TOPLEVEL = cellnet_top
+MODULE = test_cellnet_loopback
+
+# sim-scale parameters: 8x8 grid, 4 clocks per UART bit, one generation
+# every 200 clocks, seed timeout shrunk to stay proportionate.
+COMPILE_ARGS += -Pcellnet_top.ROWS=8
+COMPILE_ARGS += -Pcellnet_top.COLS=8
+COMPILE_ARGS += -Pcellnet_top.CLKS_PER_BIT=4
+COMPILE_ARGS += -Pcellnet_top.GEN_DIV=170
+COMPILE_ARGS += -Pcellnet_top.TIMEOUT_CLKS=2000
+
+SIM_BUILD = sim_build_loopback
+
+include $(shell cocotb-config --makefiles)/Makefile.sim

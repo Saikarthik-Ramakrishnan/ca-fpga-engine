@@ -6,4 +6,8 @@ VERILOG_SOURCES += $(PWD)/../rtl/ca_grid.v
 TOPLEVEL = ca_grid
 MODULE = test_ca_grid
 
+# own build dir: suites sharing sim_build serve each other stale binaries
+# (cocotb only rebuilds when sources change, not when the Makefile does)
+SIM_BUILD = sim_build_grid
+
 include $(shell cocotb-config --makefiles)/Makefile.sim

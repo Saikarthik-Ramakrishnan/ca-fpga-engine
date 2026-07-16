@@ -3,375 +3,545 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CELL·NET — Flip-Dot CA Console</title>
+<title>CELL·NET Operator Console</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600;700&display=swap');
 
+  /* ==========================================================
+     CELL-NET design system, v2.
+     Language: precision electromechanical instrument. One warm
+     dark ink ramp, one accent (phosphor amber). Green and ember
+     exist only as semantic states on the wildfire board. All
+     chrome is flat and hairline-organized; the only skeuomorphic
+     material on the page is the flip-dot board itself.
+     Shape rule: panels 14px, controls 8px, dots and LEDs round.
+     ========================================================== */
   :root{
-    --bg:#100F0C;
-    --graphite:#1A1815;
-    --graphite-hi:#242019;
-    --recess:#0B0A08;
-    --dot-off:#211E18;
-    --dot-off-edge:#0D0C09;
+    --ink-0:#0C0B09;            /* page */
+    --ink-1:#121110;            /* panel */
+    --ink-2:#1A1815;            /* raised control */
+    --recess:#070605;           /* board wells, input fields */
+    --line:rgba(237,231,216,0.08);
+    --line-strong:rgba(237,231,216,0.16);
+    --text:#EDE7D8;
+    --text-dim:#A69D8A;
+    --text-faint:#867E6D;
     --amber:#F2C14E;
+    --amber-deep:#C9922B;
     --amber-hot:#FF7A34;
-    --brass:#B8924A;
-    --brass-dim:#7C6636;
-    --steel:#5E574B;
-    --text:#EDE6D6;
-    --muted:#8A8272;
+    --amber-ink:#171204;        /* text on amber fills */
+    --ember:#B33A0F;
+    --pine:#5FA352;
+    --pine-deep:#2E5C2B;
     --vfd:#5BE7C4;
     --nixie:#FF6A22;
+    --dot-off:#1E1B16;
+    --dot-off-edge:#0C0B08;
+    --r-panel:14px;
+    --r-ctl:8px;
+    --ease:cubic-bezier(0.16,1,0.3,1);
   }
 
-  *{box-sizing:border-box;}
-  html,body{margin:0;}
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; }
   body{
-    background:
-      radial-gradient(120% 90% at 50% -10%, #191712 0%, var(--bg) 60%);
+    background:var(--ink-0);
     color:var(--text);
-    font-family:'IBM Plex Mono', monospace;
-    min-height:100vh;
-    padding:0 0 48px;
+    font-family:'Geist', sans-serif;
+    font-size:13px;
+    min-height:100dvh;
+    padding:0 0 72px;
     -webkit-font-smoothing:antialiased;
   }
+  /* one fixed, non-interactive grain layer; never on scrolling content */
+  body::after{
+    content:''; position:fixed; inset:0; z-index:90; pointer-events:none;
+    opacity:0.04;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+  }
 
-  /* ---------- Console chrome ---------- */
-  .console-bar{
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    gap:16px;
-    padding:14px 22px;
-    background:linear-gradient(180deg, var(--graphite-hi), var(--graphite));
-    border-bottom:1px solid #000;
-    box-shadow:0 1px 0 rgba(255,255,255,0.03) inset, 0 6px 20px -8px #000;
-    position:sticky;
-    top:0;
-    z-index:20;
-  }
-  .brand{
-    display:flex;
-    align-items:baseline;
-    gap:12px;
-  }
-  .brand .mark{
-    font-family:'Saira Condensed', sans-serif;
-    font-weight:700;
-    font-size:22px;
-    letter-spacing:0.14em;
-    color:var(--amber);
-    text-shadow:0 0 14px rgba(242,193,78,0.35);
-  }
-  .brand .sub{
-    font-size:10px;
-    letter-spacing:0.22em;
-    color:var(--muted);
-    text-transform:uppercase;
-  }
-  .bar-right{display:flex; align-items:center; gap:8px;}
-
-  .tabs{display:flex; gap:4px;}
-  .tab{
-    font-family:'IBM Plex Mono', monospace;
-    font-size:11px;
-    letter-spacing:0.14em;
-    text-transform:uppercase;
-    color:var(--muted);
+  ::selection{ background:var(--amber); color:var(--amber-ink); }
+  code{
+    font-family:'Geist Mono', monospace; font-size:0.88em;
+    color:var(--text-dim);
     background:var(--recess);
-    border:1px solid #000;
-    border-radius:5px;
-    padding:8px 14px;
-    cursor:pointer;
-    transition:color .15s, background .15s;
+    border:1px solid var(--line);
+    border-radius:4px;
+    padding:1px 5px;
   }
-  .tab.active{
-    color:var(--bg);
-    background:var(--amber);
-    box-shadow:0 0 16px -2px rgba(242,193,78,0.5);
+  :focus-visible{ outline:2px solid var(--amber); outline-offset:2px; border-radius:4px; }
+
+  /* ---------- top bar ---------- */
+  .console-bar{
+    display:flex; align-items:center; justify-content:space-between; gap:16px;
+    height:60px; padding:0 max(20px, calc((100vw - 1180px)/2));
+    background:rgba(12,11,9,0.82);
+    backdrop-filter:blur(14px) saturate(1.2);
+    -webkit-backdrop-filter:blur(14px) saturate(1.2);
+    border-bottom:1px solid var(--line);
+    position:sticky; top:0; z-index:20;
   }
-  .tab:not(.active):hover{ color:var(--amber); }
+  .brand{ display:flex; align-items:baseline; gap:12px; }
+  .brand .mark{
+    font-family:'Geist', sans-serif;
+    font-weight:700; font-size:17px; letter-spacing:0.1em;
+    color:var(--text);
+  }
+  .brand .mark b{ color:var(--amber); font-weight:700; }
+  .brand .sub{
+    font-size:9.5px; letter-spacing:0.24em; text-transform:uppercase;
+    color:var(--text-faint);
+  }
+  .bar-right{ display:flex; align-items:center; gap:18px; }
+
+  .tabs{ display:flex; gap:2px; height:60px; }
+  .tab{
+    appearance:none; background:none; border:none; cursor:pointer;
+    font-family:'Geist Mono', monospace;
+    font-size:12px; letter-spacing:0.08em;
+    color:var(--text-faint);
+    padding:0 14px; height:100%;
+    position:relative;
+    transition:color .18s var(--ease);
+  }
+  .tab::after{
+    content:''; position:absolute; left:12px; right:12px; bottom:-1px;
+    height:2px; background:var(--amber); border-radius:1px;
+    transform:scaleX(0); transform-origin:center;
+    transition:transform .28s var(--ease);
+  }
+  .tab:hover{ color:var(--text-dim); }
+  .tab.active{ color:var(--text); }
+  .tab.active::after{ transform:scaleX(1); }
 
   .sound-toggle{
-    display:flex; align-items:center; gap:7px;
-    font-size:10px; letter-spacing:0.1em; color:var(--muted);
+    display:flex; align-items:center; gap:8px;
+    font-family:'Geist Mono', monospace;
+    font-size:10px; letter-spacing:0.14em; color:var(--text-faint);
     text-transform:uppercase;
-    background:var(--recess);
-    border:1px solid #000; border-radius:5px;
-    padding:7px 11px; cursor:pointer;
-    user-select:none;
+    background:var(--ink-1);
+    border:1px solid var(--line); border-radius:999px;
+    padding:7px 13px 7px 9px; cursor:pointer; user-select:none;
+    transition:color .18s var(--ease), border-color .18s var(--ease);
   }
+  .sound-toggle:hover{ color:var(--text-dim); border-color:var(--line-strong); }
   .sound-toggle .led{
     width:8px; height:8px; border-radius:50%;
-    background:#3a352b; box-shadow:0 0 0 1px #000 inset;
+    background:#2E2A22;
+    transition:background .18s, box-shadow .18s;
   }
-  .sound-toggle.on .led{
-    background:var(--amber); box-shadow:0 0 8px var(--amber);
-  }
+  .sound-toggle.on{ color:var(--text); border-color:var(--line-strong); }
+  .sound-toggle.on .led{ background:var(--amber); box-shadow:0 0 7px rgba(242,193,78,0.8); }
 
-  .wrap{ max-width:900px; margin:26px auto 0; padding:0 20px; }
+  /* ---------- page frame ---------- */
+  .wrap{ max-width:1180px; margin:34px auto 0; padding:0 20px; }
   .view{ display:none; }
   .view.active{ display:block; }
 
-  /* ---------- Thesis strip ---------- */
+  /* one-time rise of a view's direct blocks on activation */
+  @media (prefers-reduced-motion: no-preference){
+    .view.active > *{
+      animation:rise .55s var(--ease) both;
+    }
+    .view.active > *:nth-child(2){ animation-delay:.06s; }
+    .view.active > *:nth-child(3){ animation-delay:.12s; }
+    @keyframes rise{
+      from{ opacity:0; transform:translateY(14px); }
+      to{ opacity:1; transform:none; }
+    }
+  }
+
+  .masthead{ margin:14px 0 42px; }
+  .masthead h1{
+    font-family:'Geist', sans-serif;
+    font-weight:700;
+    font-size:clamp(40px, 6.5vw, 68px);
+    line-height:1.02;
+    letter-spacing:0.05em;
+    margin:0 0 14px;
+    color:var(--text);
+  }
+  .masthead h1 b{ color:var(--amber); font-weight:700; }
+  .masthead p{
+    font-size:14.5px; line-height:1.65; color:var(--text-dim);
+    max-width:58ch; margin:0;
+  }
+  .masthead p b{ color:var(--text); font-weight:500; }
+  @media (max-width:620px){
+    .masthead{ margin:6px 0 30px; }
+  }
+
   .thesis{
-    font-size:12.5px; line-height:1.65; color:var(--muted);
-    border-left:2px solid var(--brass-dim);
-    padding:2px 0 2px 14px;
-    margin-bottom:22px;
-    max-width:640px;
+    font-size:12.5px; line-height:1.7; color:var(--text-dim);
+    border-left:2px solid var(--amber-deep);
+    padding:2px 0 2px 16px;
+    margin:0 0 26px;
+    max-width:70ch;
   }
   .thesis b{ color:var(--text); font-weight:500; }
   .thesis .em{ color:var(--amber); }
 
-  /* ---------- The board ---------- */
+  /* ---------- the cockpit deck: stage left, rack right ---------- */
+  .deck{
+    display:grid;
+    grid-template-columns:minmax(0,1.35fr) minmax(320px,1fr);
+    gap:30px;
+    align-items:start;
+  }
+  @media (min-width:961px){
+    .stage-col{ position:sticky; top:80px; }
+  }
+
+  /* ---------- stage: the board panel ---------- */
   .board-shell{
-    display:flex; flex-direction:column; align-items:center;
+    background:var(--ink-1);
+    border:1px solid var(--line);
+    border-radius:var(--r-panel);
+    overflow:hidden;
   }
   .blind{
-    width:100%; max-width:520px;
     display:flex; justify-content:space-between; align-items:center;
-    background:#000;
-    border:1px solid #000;
-    border-bottom:none;
-    border-radius:8px 8px 0 0;
-    padding:7px 14px;
-    font-family:'Saira Condensed', sans-serif;
-    letter-spacing:0.2em;
-    font-size:13px;
-    color:var(--amber);
+    padding:11px 16px;
+    border-bottom:1px solid var(--line);
+    font-family:'Geist Mono', monospace;
+    letter-spacing:0.12em; font-size:11px;
+    color:var(--text-dim);
   }
-  .blind .route{ font-weight:700; }
-  .blind .dest{ color:var(--muted); font-size:11px; letter-spacing:0.16em; }
-
+  .blind .route{ font-weight:600; color:var(--amber); }
+  .blind .dest{
+    color:var(--text-faint); font-size:12px; letter-spacing:0.18em;
+    font-variant-numeric:tabular-nums;
+  }
   .board-frame{
-    background:linear-gradient(180deg, #26221b, #14120e);
-    padding:16px;
-    border-radius:0 0 10px 10px;
-    border:1px solid #000;
-    box-shadow:
-      0 0 0 1px rgba(255,255,255,0.03) inset,
-      0 24px 60px -24px #000;
+    padding:clamp(12px, 2.4vw, 22px);
+    display:flex; justify-content:center;
   }
   .board{
-    display:grid;
-    gap:2px;
+    width:min(100%, 620px);
+    display:grid; gap:2px;
     background:var(--recess);
-    padding:8px;
-    border-radius:4px;
-    box-shadow:0 0 30px -10px #000 inset;
+    padding:10px; border-radius:8px;
+    box-shadow:0 0 44px -18px #000 inset;
     touch-action:none;
+    position:relative;
   }
+  #liveBoard{ width:min(100%, 440px); }
   .dot{
-    width:100%;
-    aspect-ratio:1/1;
-    border-radius:50%;
+    width:100%; aspect-ratio:1/1; border-radius:50%;
     background:
-      radial-gradient(circle at 38% 34%, #2c2820 0%, var(--dot-off) 55%, var(--dot-off-edge) 100%);
-    box-shadow:0 1px 1px rgba(0,0,0,0.6);
+      radial-gradient(circle at 38% 34%, #2A261F 0%, var(--dot-off) 55%, var(--dot-off-edge) 100%);
+    box-shadow:0 1px 1px rgba(0,0,0,0.55);
     cursor:pointer;
     will-change:transform, background;
   }
   .dot.on{
     background:
-      radial-gradient(circle at 38% 34%, #FFE9A6 0%, var(--amber) 45%, #C9922B 100%);
+      radial-gradient(circle at 38% 34%, #FFE9A6 0%, var(--amber) 45%, var(--amber-deep) 100%);
     box-shadow:0 0 6px rgba(242,193,78,0.55);
   }
-
-  /* ---------- Control console ---------- */
-  .console{
-    max-width:520px; margin:18px auto 0;
-    background:linear-gradient(180deg, var(--graphite-hi), var(--graphite));
-    border:1px solid #000; border-radius:10px;
-    padding:16px;
-    box-shadow:0 1px 0 rgba(255,255,255,0.03) inset;
+  .dot.tree{
+    background:
+      radial-gradient(circle at 38% 34%, #B8E6A0 0%, var(--pine) 45%, var(--pine-deep) 100%);
+    box-shadow:0 0 5px rgba(95,163,82,0.35);
   }
-  .console-section + .console-section{
-    margin-top:14px; padding-top:14px;
-    border-top:1px solid #000;
-    box-shadow:0 1px 0 rgba(255,255,255,0.03);
-  }
-  .sec-label{
-    font-size:9.5px; letter-spacing:0.2em; text-transform:uppercase;
-    color:var(--brass); margin-bottom:9px;
+  .dot.fire{
+    background:
+      radial-gradient(circle at 38% 34%, #FFE9A6 0%, var(--amber-hot) 45%, var(--ember) 100%);
+    box-shadow:0 0 9px rgba(255,122,52,0.75);
   }
 
-  .btn-row{ display:flex; gap:8px; flex-wrap:wrap; }
-  .pbtn{
-    font-family:'IBM Plex Mono', monospace;
-    font-size:11px; letter-spacing:0.06em;
-    color:var(--text);
-    background:linear-gradient(180deg, #2b271f, #1c1913);
-    border:1px solid #000; border-top:1px solid #38322788;
-    border-radius:6px;
-    padding:9px 13px; cursor:pointer;
-    display:flex; align-items:center; gap:7px;
-    transition:transform .05s, box-shadow .15s;
-    box-shadow:0 2px 0 #000;
-  }
-  .pbtn:hover{ color:var(--amber); }
-  .pbtn:active{ transform:translateY(2px); box-shadow:0 0 0 #000; }
-  .pbtn .led{
-    width:7px; height:7px; border-radius:50%;
-    background:#3a352b; box-shadow:0 0 0 1px #000 inset;
-  }
-  .pbtn.live .led{ background:var(--amber); box-shadow:0 0 7px var(--amber); }
-
-  .preset-bank{ display:flex; gap:6px; flex-wrap:wrap; }
-  .preset{
-    font-size:10.5px; letter-spacing:0.04em;
-    color:var(--muted);
-    background:var(--recess);
-    border:1px solid #000; border-radius:5px;
-    padding:7px 10px; cursor:pointer;
-    transition:color .12s, background .12s;
-  }
-  .preset:hover{ color:var(--amber); }
-  .preset.sel{ color:var(--bg); background:var(--brass); }
-
-  .rule-bank{ display:flex; gap:6px; flex-wrap:wrap; }
-  .rule{
-    font-size:10.5px;
-    color:var(--muted);
-    background:var(--recess);
-    border:1px solid #000; border-radius:5px;
-    padding:7px 10px; cursor:pointer;
-    display:flex; flex-direction:column; gap:2px;
-    transition:color .12s, background .12s;
-  }
-  .rule small{ font-size:8.5px; color:var(--brass-dim); letter-spacing:0.05em; }
-  .rule:hover{ color:var(--amber); }
-  .rule.sel{ color:var(--bg); background:var(--amber); }
-  .rule.sel small{ color:#5c4a1e; }
-
-  .dials{ display:flex; gap:18px; flex-wrap:wrap; }
-  .dial{ flex:1; min-width:150px; }
-  .dial .dl{
-    display:flex; justify-content:space-between;
-    font-size:10px; color:var(--muted); margin-bottom:6px;
-    letter-spacing:0.05em;
-  }
-  .dial .dl b{ color:var(--amber); font-weight:500; }
-  input[type=range]{ width:100%; accent-color:var(--brass); }
-
-  /* ---------- Readouts (segment style) ---------- */
+  /* ---------- readouts: one strip, hairline-divided ---------- */
   .readouts{
-    max-width:520px; margin:16px auto 0;
-    display:grid; grid-template-columns:repeat(4,1fr); gap:10px;
+    margin-top:14px;
+    display:grid; grid-template-columns:repeat(4,1fr);
+    background:var(--ink-1);
+    border:1px solid var(--line);
+    border-radius:var(--r-panel);
+    overflow:hidden;
   }
-  .ro{
-    background:var(--recess);
-    border:1px solid #000; border-radius:7px;
-    padding:10px 10px 8px;
-    box-shadow:0 0 22px -12px var(--amber) inset;
-  }
+  .ro{ padding:13px 16px 11px; }
+  .ro + .ro{ border-left:1px solid var(--line); }
   .ro .rl{
-    font-size:8.5px; letter-spacing:0.14em; text-transform:uppercase;
-    color:var(--muted); margin-bottom:4px;
+    font-family:'Geist Mono', monospace;
+    font-size:8.5px; letter-spacing:0.16em; text-transform:uppercase;
+    color:var(--text-faint); margin-bottom:5px;
   }
   .ro .rv{
-    font-family:'Saira Condensed', sans-serif;
-    font-weight:700; font-size:24px; line-height:1;
+    font-family:'Geist Mono', monospace;
+    font-weight:600; font-size:23px; line-height:1;
     color:var(--amber);
-    text-shadow:0 0 12px rgba(242,193,78,0.4);
     font-variant-numeric:tabular-nums;
   }
 
+  /* ---------- rack: the control column ---------- */
+  .console{
+    background:var(--ink-1);
+    border:1px solid var(--line);
+    border-radius:var(--r-panel);
+    padding:20px;
+  }
+  .console-section + .console-section{
+    margin-top:18px; padding-top:18px;
+    border-top:1px solid var(--line);
+  }
+  .sec-label{
+    font-family:'Geist Mono', monospace;
+    font-size:9.5px; letter-spacing:0.2em; text-transform:uppercase;
+    color:var(--text-faint); margin-bottom:11px;
+  }
+
+  .btn-row{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  label.pbtn{ cursor:pointer; }
+  .pbtn{
+    font-family:'Geist Mono', monospace;
+    font-size:11.5px; letter-spacing:0.05em;
+    color:var(--text-dim);
+    background:var(--ink-2);
+    border:1px solid var(--line);
+    border-radius:var(--r-ctl);
+    padding:0 14px; height:38px;
+    cursor:pointer;
+    display:inline-flex; align-items:center; gap:8px;
+    transition:color .15s var(--ease), border-color .15s var(--ease),
+               transform .06s, background .15s var(--ease);
+  }
+  .pbtn:hover{ color:var(--text); border-color:var(--line-strong); }
+  .pbtn:active{ transform:translateY(1px); }
+  .pbtn .led{
+    width:7px; height:7px; border-radius:50%;
+    background:#2E2A22;
+    transition:background .15s, box-shadow .15s;
+  }
+  .pbtn.live{
+    color:var(--amber); border-color:rgba(242,193,78,0.4);
+    background:rgba(242,193,78,0.06);
+  }
+  .pbtn.live .led{ background:var(--amber); box-shadow:0 0 7px rgba(242,193,78,0.85); }
+
+  .kbd-hint{
+    margin:10px 0 0; font-size:10px; color:var(--text-faint);
+    display:flex; align-items:center; gap:6px; flex-wrap:wrap;
+  }
+  kbd{
+    font-family:'Geist Mono', monospace; font-size:9.5px;
+    color:var(--text-dim);
+    background:var(--recess);
+    border:1px solid var(--line-strong);
+    border-bottom-width:2px;
+    border-radius:5px;
+    padding:2px 6px;
+  }
+
+  .preset-bank, .rule-bank{ display:flex; gap:7px; flex-wrap:wrap; }
+  .preset, .rule{
+    font-family:'Geist Mono', monospace;
+    font-size:10.5px; letter-spacing:0.04em;
+    color:var(--text-dim);
+    background:var(--recess);
+    border:1px solid var(--line); border-radius:var(--r-ctl);
+    padding:8px 11px; cursor:pointer;
+    transition:color .15s var(--ease), background .15s var(--ease),
+               border-color .15s var(--ease), transform .06s;
+  }
+  .rule{ display:flex; flex-direction:column; gap:2px; }
+  .rule small{ font-size:8.5px; color:var(--text-faint); letter-spacing:0.05em; }
+  .preset:hover, .rule:hover{ color:var(--text); border-color:var(--line-strong); }
+  .preset:active, .rule:active{ transform:translateY(1px); }
+  .preset.sel, .rule.sel{
+    color:var(--amber-ink); background:var(--amber);
+    border-color:var(--amber);
+  }
+  .rule.sel small{ color:rgba(23,18,4,0.65); }
+
+  .dials{ display:flex; gap:18px; flex-wrap:wrap; }
+  .dials-spaced{ margin-top:14px; }
+  .dial{ flex:1; min-width:130px; }
+  .dial .dl{
+    display:flex; justify-content:space-between; align-items:baseline;
+    font-family:'Geist Mono', monospace;
+    font-size:10px; color:var(--text-faint); margin-bottom:8px;
+    letter-spacing:0.05em;
+  }
+  .dial .dl b{
+    color:var(--amber); font-weight:500;
+    font-variant-numeric:tabular-nums;
+  }
+
+  input[type=range]{
+    appearance:none; -webkit-appearance:none;
+    width:100%; height:18px; margin:0;
+    background:transparent; cursor:pointer;
+    --fill:50%;
+  }
+  input[type=range]::-webkit-slider-runnable-track{
+    height:4px; border-radius:2px;
+    background:linear-gradient(var(--amber), var(--amber)) 0/var(--fill) 100% no-repeat,
+               rgba(237,231,216,0.12);
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none; appearance:none;
+    width:16px; height:16px; border-radius:50%;
+    margin-top:-6px;
+    background:var(--ink-0);
+    border:2px solid var(--amber);
+    transition:box-shadow .15s var(--ease);
+  }
+  input[type=range]:hover::-webkit-slider-thumb,
+  input[type=range]:focus-visible::-webkit-slider-thumb{
+    box-shadow:0 0 0 4px rgba(242,193,78,0.18);
+  }
+  input[type=range]::-moz-range-track{
+    height:4px; border-radius:2px; background:rgba(237,231,216,0.12);
+  }
+  input[type=range]::-moz-range-progress{
+    height:4px; border-radius:2px; background:var(--amber);
+  }
+  input[type=range]::-moz-range-thumb{
+    width:12px; height:12px; border-radius:50%;
+    background:var(--ink-0); border:2px solid var(--amber);
+  }
+
+  .field{
+    font-family:'Geist Mono', monospace;
+    font-size:11.5px; color:var(--text);
+    background:var(--recess);
+    border:1px solid var(--line);
+    border-radius:var(--r-ctl);
+    padding:9px 11px; width:100%;
+    transition:border-color .15s var(--ease);
+  }
+  .field:hover{ border-color:var(--line-strong); }
+  select.field{ width:auto; cursor:pointer; padding-right:28px;
+    appearance:none; -webkit-appearance:none;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='%236E675A'/%3E%3C/svg%3E");
+    background-repeat:no-repeat; background-position:right 10px center;
+  }
+  input[type=number].field{ -moz-appearance:textfield; }
+  input[type=number].field::-webkit-inner-spin-button{ opacity:1; }
+
+  .note{
+    font-size:11px; color:var(--text-faint);
+    margin:11px 0 0; line-height:1.65;
+  }
+  .status-inline{ font-family:'Geist Mono', monospace; font-size:10.5px; color:var(--text-faint); }
+
   /* ---------- Displays tab ---------- */
   .disp-intro{
-    font-size:12.5px; line-height:1.65; color:var(--muted);
-    max-width:640px; margin-bottom:24px;
+    font-size:12.5px; line-height:1.7; color:var(--text-dim);
+    max-width:70ch; margin:0 0 26px;
   }
   .disp-intro b{ color:var(--text); font-weight:500; }
   .disp-grid{
-    display:grid; grid-template-columns:repeat(auto-fit, minmax(240px,1fr));
-    gap:16px;
+    display:grid;
+    grid-template-columns:repeat(3, minmax(0,1fr));
+    gap:14px;
   }
   .dcard{
-    background:linear-gradient(180deg, var(--graphite-hi), var(--graphite));
-    border:1px solid #000; border-radius:10px;
-    padding:16px;
-    box-shadow:0 1px 0 rgba(255,255,255,0.03) inset;
+    background:var(--ink-1);
+    border:1px solid var(--line);
+    border-radius:var(--r-panel);
+    padding:18px;
     display:flex; flex-direction:column;
+    transition:border-color .18s var(--ease), transform .18s var(--ease);
+  }
+  .dcard:hover{ border-color:var(--line-strong); transform:translateY(-2px); }
+  .dcard.primary{
+    grid-column:span 2;
+    border-color:rgba(242,193,78,0.32);
+    background:linear-gradient(180deg, rgba(242,193,78,0.05), rgba(242,193,78,0) 45%), var(--ink-1);
   }
   .dcard .stage{
-    height:96px; border-radius:6px; margin-bottom:12px;
+    height:104px; border-radius:var(--r-ctl); margin-bottom:14px;
     background:var(--recess);
     display:flex; align-items:center; justify-content:center;
     overflow:hidden;
-    box-shadow:0 0 24px -12px #000 inset;
+    box-shadow:0 0 28px -14px #000 inset;
   }
+  .dcard.primary .stage{ height:128px; }
   .dcard h3{
-    font-family:'Saira Condensed', sans-serif;
-    font-weight:600; font-size:17px; letter-spacing:0.06em;
+    font-family:'Geist', sans-serif;
+    font-weight:600; font-size:15.5px; letter-spacing:0;
     margin:0 0 3px; color:var(--text);
   }
   .dcard .tag{
-    font-size:9px; letter-spacing:0.14em; text-transform:uppercase;
-    color:var(--brass); margin-bottom:8px;
+    font-family:'Geist Mono', monospace;
+    font-size:9px; letter-spacing:0.16em; text-transform:uppercase;
+    color:var(--text-faint); margin-bottom:9px;
   }
-  .dcard p{ font-size:11.5px; line-height:1.55; color:var(--muted); margin:0; }
-  .dcard.primary{ border:1px solid var(--brass-dim); }
   .dcard.primary .tag{ color:var(--amber); }
+  .dcard p{ font-size:11.5px; line-height:1.62; color:var(--text-dim); margin:0; }
+  .dcard p b{ color:var(--text); font-weight:500; }
 
-  /* mini flip-dot preview */
-  .mini-dots{ display:grid; grid-template-columns:repeat(7,10px); gap:3px; }
+  .mini-dots{ display:grid; grid-template-columns:repeat(7,11px); gap:3px; }
   .mini-dots span{
-    width:10px; height:10px; border-radius:50%;
+    width:11px; height:11px; border-radius:50%;
     background:var(--dot-off);
     transition:background .2s, transform .2s;
   }
-  .mini-dots span.on{
-    background:var(--amber); box-shadow:0 0 5px var(--amber);
-  }
+  .mini-dots span.on{ background:var(--amber); box-shadow:0 0 5px rgba(242,193,78,0.7); }
 
-  /* split-flap */
   .flap{
-    width:44px; height:60px; border-radius:5px;
-    background:#1c1a16;
+    width:46px; height:62px; border-radius:6px;
+    background:var(--ink-2);
+    border:1px solid var(--line);
     position:relative; overflow:hidden;
     display:flex; align-items:center; justify-content:center;
-    font-family:'Saira Condensed', sans-serif; font-weight:700; font-size:34px;
+    font-family:'Geist Mono', monospace; font-weight:700; font-size:28px;
     color:var(--text);
-    box-shadow:0 3px 8px -3px #000;
   }
   .flap::after{
     content:''; position:absolute; left:0; right:0; top:50%; height:1px;
-    background:#000;
+    background:rgba(0,0,0,0.7);
   }
-
-  /* VFD */
   .vfd{
-    font-family:'Saira Condensed', sans-serif; font-weight:700;
-    font-size:30px; letter-spacing:0.1em;
+    font-family:'Geist Mono', monospace; font-weight:700;
+    font-size:25px; letter-spacing:0.08em;
     color:var(--vfd);
-    text-shadow:0 0 10px var(--vfd), 0 0 22px rgba(91,231,196,0.5);
+    text-shadow:0 0 10px rgba(91,231,196,0.7);
   }
-  /* nixie */
   .nixie{
-    font-family:'Saira Condensed', sans-serif; font-weight:700;
-    font-size:34px; letter-spacing:0.08em;
+    font-family:'Geist Mono', monospace; font-weight:700;
+    font-size:28px; letter-spacing:0.06em;
     color:var(--nixie);
-    text-shadow:0 0 8px var(--nixie), 0 0 20px rgba(255,106,34,0.6);
+    text-shadow:0 0 9px rgba(255,106,34,0.7);
   }
-  /* led matrix */
   .led-grid{ display:grid; grid-template-columns:repeat(9,7px); gap:2px; }
-  .led-grid span{
-    width:7px; height:7px; border-radius:1px; background:#241d12;
-  }
-  .led-grid span.on{ background:#ff3b3b; box-shadow:0 0 4px #ff3b3b; }
+  .led-grid span{ width:7px; height:7px; border-radius:1.5px; background:#221C12; }
+  .led-grid span.on{ background:#FF4D3D; box-shadow:0 0 4px rgba(255,77,61,0.8); }
 
   .target-note{
-    margin-top:22px; padding:14px 16px;
-    background:var(--recess); border:1px solid var(--brass-dim);
-    border-radius:9px; font-size:12px; line-height:1.6; color:var(--muted);
+    margin-top:16px; padding:16px 18px;
+    background:var(--ink-1);
+    border:1px solid rgba(242,193,78,0.3);
+    border-radius:var(--r-panel);
+    font-size:12px; line-height:1.68; color:var(--text-dim);
   }
   .target-note b{ color:var(--amber); font-weight:500; }
 
-  @media (max-width:560px){
+  /* ---------- responsive collapse ---------- */
+  @media (max-width:960px){
+    .deck{ grid-template-columns:1fr; gap:18px; }
+    .disp-grid{ grid-template-columns:repeat(2, minmax(0,1fr)); }
+    .dcard.primary{ grid-column:span 2; }
+  }
+  @media (max-width:620px){
+    .wrap{ margin-top:22px; }
     .readouts{ grid-template-columns:repeat(2,1fr); }
+    .ro:nth-child(3){ border-left:none; }
+    .ro:nth-child(n+3){ border-top:1px solid var(--line); }
     .brand .sub{ display:none; }
+    .console-bar{ padding:0 12px; gap:10px; }
+    .tabs{ overflow-x:auto; scrollbar-width:none; }
+    .tabs::-webkit-scrollbar{ display:none; }
+    .tab{ padding:0 9px; font-size:11px; }
+    .disp-grid{ grid-template-columns:1fr; }
+    .dcard.primary{ grid-column:span 1; }
+  }
+  @media (prefers-reduced-motion: reduce){
+    *, *::before, *::after{
+      animation-duration:0.01ms !important;
+      transition-duration:0.01ms !important;
+    }
   }
 </style>
 </head>
@@ -379,12 +549,13 @@
 
 <div class="console-bar">
   <div class="brand">
-    <span class="mark">CELL·NET</span>
+    <span class="mark">CELL<b>·</b>NET</span>
     <span class="sub">Flip-Dot Automaton Console</span>
   </div>
   <div class="bar-right">
     <div class="tabs">
       <button class="tab active" data-view="engine">Engine</button>
+      <button class="tab" data-view="wildfire">Wildfire</button>
       <button class="tab" data-view="live">Live</button>
       <button class="tab" data-view="displays">Displays</button>
     </div>
@@ -394,14 +565,22 @@
 
 <!-- ============ ENGINE ============ -->
 <div class="wrap">
+
+  <header class="masthead">
+    <h1>CELL<b>·</b>NET</h1>
+    <p>A massively parallel cellular automaton engine. <b>Every cell is its own circuit</b>;
+    this console is its operator panel, from software twin to live silicon.</p>
+  </header>
+
   <div class="view active" id="view-engine">
     <p class="thesis">
       Each dot runs one rule, reading <b>only its eight neighbors</b>. On a CPU that's
-      1,600 sequential updates per frame. On the FPGA it's <span class="em">one clock edge</span> —
-      every dot is its own coil-driven cell. This board is the software twin of that fabric:
+      1,600 sequential updates per frame. On the FPGA it's <span class="em">one clock edge</span>: every dot is its own coil-driven cell. This board is the software twin of that fabric:
       what you draw here becomes the pattern the real flip-dots throw.
     </p>
 
+    <div class="deck">
+    <div class="stage-col">
     <div class="board-shell">
       <div class="blind">
         <span class="route" id="blindRule">CONWAY · B3/S23</span>
@@ -418,7 +597,9 @@
       <div class="ro"><div class="rl">Peak Dwell</div><div class="rv" id="roAge">0</div></div>
       <div class="ro"><div class="rl">Fabric %</div><div class="rv" id="roUtil">0</div></div>
     </div>
+    </div>
 
+    <div class="rack-col">
     <div class="console">
       <div class="console-section">
         <div class="sec-label">Transport</div>
@@ -428,10 +609,11 @@
           <button class="pbtn" id="randBtn">Seed</button>
           <button class="pbtn" id="clearBtn">Blank</button>
         </div>
+        <p class="kbd-hint"><kbd>Space</kbd> run / pause <kbd>S</kbd> step</p>
       </div>
 
       <div class="console-section">
-        <div class="sec-label">Ruleset — the truth table that becomes logic</div>
+        <div class="sec-label">Ruleset, the truth table that becomes logic</div>
         <div class="rule-bank" id="ruleBank"></div>
       </div>
 
@@ -454,6 +636,85 @@
         </div>
       </div>
     </div>
+    </div>
+    </div>
+  </div>
+
+  <!-- ============ WILDFIRE ============ -->
+  <div class="view" id="view-wildfire">
+    <p class="thesis">
+      The Drossel-Schwabl forest fire model: the console's first rule that is
+      <b>multi-state and probabilistic</b>. Each cell is empty, a tree, or on fire.
+      Fire burns out in one step, spreads to any tree touching it, and strikes
+      as rare lightning. In hardware that's a <span class="em">2-bit register per cell</span>,
+      an 8-input OR for "any neighbor burning" (cheaper than Life's popcount),
+      and per-cell taps off an LFSR for the randomness. Click the board to
+      drop lightning yourself.
+    </p>
+
+    <div class="deck">
+    <div class="stage-col">
+    <div class="board-shell">
+      <div class="blind">
+        <span class="route">WILDFIRE · DROSSEL-SCHWABL</span>
+        <span class="dest" id="wfBlindGen">GEN 0000</span>
+      </div>
+      <div class="board-frame">
+        <div class="board" id="wfBoard"></div>
+      </div>
+    </div>
+
+    <div class="readouts">
+      <div class="ro"><div class="rl">Generation</div><div class="rv" id="wfGen">0</div></div>
+      <div class="ro"><div class="rl">Forest %</div><div class="rv" id="wfTrees">0</div></div>
+      <div class="ro"><div class="rl">Burning</div><div class="rv" id="wfBurning">0</div></div>
+      <div class="ro"><div class="rl">Burned Total</div><div class="rv" id="wfBurned">0</div></div>
+    </div>
+    </div>
+
+    <div class="rack-col">
+    <div class="console">
+      <div class="console-section">
+        <div class="sec-label">Transport</div>
+        <div class="btn-row">
+          <button class="pbtn" id="wfPlayBtn"><span class="led"></span>Run</button>
+          <button class="pbtn" id="wfStepBtn">Step</button>
+          <button class="pbtn" id="wfPlantBtn">Plant Forest</button>
+          <button class="pbtn" id="wfStrikeBtn">Strike</button>
+          <button class="pbtn" id="wfClearBtn">Blank</button>
+        </div>
+        <p class="kbd-hint"><kbd>Space</kbd> run / pause <kbd>S</kbd> step</p>
+      </div>
+
+      <div class="console-section">
+        <div class="sec-label">Calibration, the two probabilities that shape everything</div>
+        <div class="dials">
+          <div class="dial">
+            <div class="dl"><span>Growth p</span><b id="wfGrowVal">2.0%</b></div>
+            <input type="range" id="wfGrow" min="1" max="100" value="20">
+          </div>
+          <div class="dial">
+            <div class="dl"><span>Lightning f</span><b id="wfLightVal">5 / 100k</b></div>
+            <input type="range" id="wfLight" min="1" max="200" value="5">
+          </div>
+          <div class="dial">
+            <div class="dl"><span>Clock rate</span><b id="wfSpdVal">10 gen/s</b></div>
+            <input type="range" id="wfSpeed" min="1" max="30" value="10">
+          </div>
+        </div>
+        <p class="note">
+          The ratio p/f sets the character of the system: rare lightning over
+          fast growth means the forest fills in and burns in huge, connected
+          sweeps; frequent lightning keeps fires small before regions can
+          connect. This is the same percolation trade-off behind real fire
+          management, and it needs no global coordinator: every cell still
+          reads only its eight neighbors, which is why it drops onto the same
+          FPGA fabric as Life.
+        </p>
+      </div>
+    </div>
+    </div>
+    </div>
   </div>
 
   <!-- ============ LIVE ============ -->
@@ -466,6 +727,8 @@
       actually sends.
     </p>
 
+    <div class="deck">
+    <div class="stage-col">
     <div class="board-shell">
       <div class="blind">
         <span class="route" id="liveSourceLabel">NO SOURCE</span>
@@ -475,19 +738,22 @@
         <div class="board" id="liveBoard"></div>
       </div>
     </div>
+    </div>
 
+    <div class="rack-col">
     <div class="console">
       <div class="console-section">
         <div class="sec-label">Replay a capture, no hardware needed</div>
         <div class="btn-row">
-          <label class="pbtn" style="cursor:pointer;">
+          <label class="pbtn">
             Load uart_capture.json
             <input type="file" id="captureFile" accept="application/json" style="display:none;">
           </label>
           <button class="pbtn" id="replayPlayBtn"><span class="led"></span>Play</button>
           <button class="pbtn" id="replayStepBtn">Step</button>
         </div>
-        <p style="font-size:11px;color:var(--muted);margin-top:10px;line-height:1.6;">
+        <p class="kbd-hint"><kbd>Space</kbd> play / pause <kbd>S</kbd> step</p>
+        <p class="note">
           Generate one with <code>demo_capture.py</code> in <code>hardware/tests/demos/</code>,
           then load it here. Every frame shown is decoded straight off the
           simulated wire, not read from the golden model directly.
@@ -498,26 +764,23 @@
         <div class="sec-label">Connect real hardware, Web Serial</div>
         <div class="btn-row">
           <button class="pbtn" id="connectSerialBtn">Connect</button>
-          <span id="serialStatus" style="font-size:11px;color:var(--muted);">Not connected</span>
+          <span id="serialStatus" class="status-inline">Not connected</span>
         </div>
-        <div class="dials" style="margin-top:14px;">
+        <div class="dials dials-spaced">
           <div class="dial">
             <div class="dl"><span>Grid rows</span></div>
-            <input type="number" id="hwRows" value="8" min="1" max="32"
-              style="width:100%;background:var(--recess);color:var(--text);border:1px solid #000;border-radius:5px;padding:6px;">
+            <input type="number" id="hwRows" class="field" value="8" min="1" max="32">
           </div>
           <div class="dial">
             <div class="dl"><span>Grid cols</span></div>
-            <input type="number" id="hwCols" value="8" min="1" max="32"
-              style="width:100%;background:var(--recess);color:var(--text);border:1px solid #000;border-radius:5px;padding:6px;">
+            <input type="number" id="hwCols" class="field" value="8" min="1" max="32">
           </div>
           <div class="dial">
             <div class="dl"><span>Baud rate</span></div>
-            <input type="number" id="hwBaud" value="115200" step="1"
-              style="width:100%;background:var(--recess);color:var(--text);border:1px solid #000;border-radius:5px;padding:6px;">
+            <input type="number" id="hwBaud" class="field" value="115200" step="1">
           </div>
         </div>
-        <p style="font-size:11px;color:var(--muted);margin-top:10px;line-height:1.6;">
+        <p class="note">
           Needs Chrome or Edge, and a secure context. Opening this file
           directly (<code>file://</code>) may block Web Serial silently; if
           Connect does nothing, serve it locally instead
@@ -526,6 +789,28 @@
           <code>cellnet_top.v</code> was actually synthesized with.
         </p>
       </div>
+
+      <div class="console-section">
+        <div class="sec-label">Seed the chip, same cable, other direction</div>
+        <div class="btn-row">
+          <select id="seedPattern" class="field">
+            <option value="glider">Glider</option>
+            <option value="blinker">Blinker</option>
+            <option value="soup">Random soup</option>
+          </select>
+          <button class="pbtn" id="sendSeedBtn">Send Seed</button>
+          <span id="seedStatus" class="status-inline">Connect first</span>
+        </div>
+        <p class="note">
+          As of Phase 4.5 the chip listens as well as talks: one 0x55
+          command byte plus a full grid snapshot, and <code>seed_loader.v</code>
+          drops your pattern into the fabric while the stream keeps
+          running. What comes back on this board a moment later is that
+          pattern evolving in real silicon.
+        </p>
+      </div>
+    </div>
+    </div>
     </div>
   </div>
 
@@ -534,8 +819,7 @@
     <p class="disp-intro">
       The engine outputs a grid of bits every clock. The interesting question is what
       <b>physical medium</b> throws those bits. Here are the real options, from the one
-      that best matches the "one coil per cell" thesis to the honest prototyping baseline —
-      each with how the FPGA would actually drive it.
+      that best matches the "one coil per cell" thesis to the honest prototyping baseline, each with how the FPGA would actually drive it.
     </p>
 
     <div class="disp-grid">
@@ -543,7 +827,7 @@
         <div class="stage"><div class="mini-dots" id="miniFlip"></div></div>
         <h3>Flip-Dot Matrix</h3>
         <div class="tag">Primary target</div>
-        <p>One bistable electromagnetic disc per pixel — black on one face, phosphor-yellow on
+        <p>One bistable electromagnetic disc per pixel: black on one face, phosphor-yellow on
         the other. A pulse latches it; it then holds with <b>zero power</b>. FPGA drives
         panels through serial coil drivers (AlfaZeta / ULN2803 + shift registers): one clock
         streams a whole frame, so the CA's parallel update maps straight onto the panel. The
@@ -555,16 +839,16 @@
         <h3>Split-Flap (Solari)</h3>
         <div class="tag">Text · scores</div>
         <p>Rotating character flaps, one small motor/coil per module. Too coarse for a dense
-        pixel grid, but perfect for throwing the engine's <b>readouts</b> — generation count,
-        population — as a departure-board display. FPGA times the flap stepping sequence.</p>
+        pixel grid, but perfect for throwing the engine's <b>readouts</b> (generation count,
+        population) as a departure-board display. FPGA times the flap stepping sequence.</p>
       </div>
 
       <div class="dcard">
         <div class="stage"><div class="vfd" id="vfd">01</div></div>
         <h3>Vacuum Fluorescent</h3>
         <div class="tag">Glow · persistence</div>
-        <p>Phosphor anodes under a heated filament — that cyan-green glow with soft persistence.
-        Needs ~20–30 V anode/grid drive, so FPGA plus a boost converter and a high-voltage
+        <p>Phosphor anodes under a heated filament: that cyan-green glow with soft persistence.
+        Needs roughly 20 to 30 V of anode/grid drive, so FPGA plus a boost converter and a high-voltage
         driver. Beautiful for a compact status panel beside the main board.</p>
       </div>
 
@@ -572,7 +856,7 @@
         <div class="stage"><div class="nixie" id="nixie">07</div></div>
         <h3>Nixie Tubes</h3>
         <div class="tag">Counters</div>
-        <p>Cold-cathode neon, one shaped cathode per digit, ~170 V DC. Not a matrix — so not the
+        <p>Cold-cathode neon, one shaped cathode per digit, roughly 170 V DC. Not a matrix, so not the
         grid, but the <b>right medium for the counters</b>: live generation and peak-dwell in
         orange neon. FPGA + HV supply + a driver like the K155ID1.</p>
       </div>
@@ -582,7 +866,7 @@
         <h3>LED Dot Matrix</h3>
         <div class="tag">Baseline</div>
         <p>Cheapest, fastest, no moving parts. HUB75 panels refresh in microseconds and FPGAs
-        drive them brilliantly. This is what you <b>prototype the fabric on first</b> — prove
+        drive them brilliantly. This is what you <b>prototype the fabric on first</b>: prove
         the grid, then graduate the output to flip-dots.</p>
       </div>
     </div>
@@ -590,7 +874,7 @@
     <div class="target-note">
       <b>Plan:</b> prove the parallel fabric on a cheap LED/HUB75 panel first (it just wants
       bits, fast), then swap the output stage to a flip-dot panel once the Verilog grid is
-      solid. The cell logic doesn't change — only the driver on the last stage does. That
+      solid. The cell logic doesn't change, only the driver on the last stage does. That
       separation (compute fabric vs. output medium) is exactly how you'd argue the design in a
       writeup.
     </div>
@@ -602,8 +886,7 @@
 const N = 40;
 const board = document.getElementById('board');
 board.style.gridTemplateColumns = `repeat(${N}, 1fr)`;
-board.style.width = 'min(520px, 84vw)';
-board.style.height = 'min(520px, 84vw)';
+
 
 let grid = new Uint8Array(N*N);
 let age  = new Uint16Array(N*N);
@@ -654,7 +937,7 @@ board.addEventListener('pointerdown', e=>{
 board.addEventListener('pointermove', e=>{ if(painting) paintAt(e.clientX, e.clientY); });
 window.addEventListener('pointerup', ()=> painting = false);
 
-// ---- THE RULE (pure, local — becomes ca_cell.v) ----
+// ---- THE RULE (pure, local, becomes ca_cell.v) ----
 function update(alive, n){
   return alive ? (rule.survive.includes(n) ? 1 : 0)
                : (rule.birth.includes(n)   ? 1 : 0);
@@ -856,8 +1139,7 @@ function setupLiveBoard(rows, cols){
   liveRows = rows; liveCols = cols;
   liveBoard.innerHTML = '';
   liveBoard.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
-  liveBoard.style.width = 'min(340px, 76vw)';
-  liveBoard.style.height = 'min(340px, 76vw)';
+
   liveCells = [];
   for(let i=0;i<rows*cols;i++){
     const d = document.createElement('div');
@@ -913,6 +1195,8 @@ document.getElementById('replayPlayBtn').onclick = function(){
 };
 
 // ---- connect real hardware over Web Serial ----
+let livePort = null;   // stashed on connect so the seed sender can write
+
 document.getElementById('connectSerialBtn').onclick = async ()=>{
   const statusEl = document.getElementById('serialStatus');
   if(!('serial' in navigator)){
@@ -927,6 +1211,8 @@ document.getElementById('connectSerialBtn').onclick = async ()=>{
 
     const port = await navigator.serial.requestPort();
     await port.open({ baudRate: baud });
+    livePort = port;
+    document.getElementById('seedStatus').textContent = 'Ready';
     statusEl.textContent = 'Connected, waiting for frames...';
     liveSourceLabel.textContent = 'LIVE · FPGA';
     setupLiveBoard(rows, cols);
@@ -962,6 +1248,216 @@ document.getElementById('connectSerialBtn').onclick = async ()=>{
   } catch(err){
     statusEl.textContent = 'Connection failed: ' + err.message;
   }
+};
+
+// ---- send a seed to the chip (Phase 4.5 protocol) ----
+// 0x55 command byte, then rows*cols/8 payload bytes with byte 0 holding
+// grid bits [7:0]: byte-for-byte what seed_loader.v expects and what
+// test_cellnet_loopback.py proved against the simulated chip.
+function buildSeedGrid(kind, rows, cols){
+  const g = new Uint8Array(rows * cols);
+  const set = (x, y) => { g[((y % rows + rows) % rows) * cols + ((x % cols + cols) % cols)] = 1; };
+  if(kind === 'glider'){
+    for(const [dx, dy] of [[0,0],[1,0],[2,0],[2,1],[1,2]]) set(2 + dx, 2 + dy);
+  } else if(kind === 'blinker'){
+    for(let dx = 0; dx < 3; dx++) set(Math.floor(cols/2) - 1 + dx, Math.floor(rows/2));
+  } else {
+    for(let i = 0; i < g.length; i++) g[i] = Math.random() < 0.25 ? 1 : 0;
+  }
+  return g;
+}
+
+document.getElementById('sendSeedBtn').onclick = async ()=>{
+  const seedStatus = document.getElementById('seedStatus');
+  if(!livePort || !livePort.writable){
+    seedStatus.textContent = 'Connect first';
+    return;
+  }
+  const rows = parseInt(document.getElementById('hwRows').value, 10);
+  const cols = parseInt(document.getElementById('hwCols').value, 10);
+  if((rows * cols) % 8 !== 0){
+    seedStatus.textContent = 'rows*cols must be a multiple of 8';
+    return;
+  }
+  const g = buildSeedGrid(document.getElementById('seedPattern').value, rows, cols);
+  const numBytes = (rows * cols) / 8;
+  const packet = new Uint8Array(1 + numBytes);
+  packet[0] = 0x55;
+  for(let i = 0; i < rows * cols; i++){
+    if(g[i]) packet[1 + (i >> 3)] |= (1 << (i & 7));
+  }
+  try{
+    const writer = livePort.writable.getWriter();
+    await writer.write(packet);
+    writer.releaseLock();
+    seedStatus.textContent = `Sent ${packet.length} bytes`;
+  } catch(err){
+    seedStatus.textContent = 'Send failed: ' + err.message;
+  }
+};
+
+// ============ WILDFIRE TAB ============
+// Drossel-Schwabl forest fire model. Three states instead of two, and
+// probabilistic instead of deterministic, but the structural contract
+// that makes the whole project work is untouched: each cell's next
+// state is a pure function of itself, its eight neighbors, and two
+// random draws. Synchronous update, toroidal wrap, same as Life.
+//
+// Hardware mapping, honestly stated: 2 bits of state per cell (three
+// states fit in two bits with one spare code), "any neighbor burning"
+// is an 8-input OR (one LUT level, cheaper than Life's adder tree),
+// and the random draws come from comparing per-cell taps of a
+// free-running LFSR against the p and f thresholds. Randomness is the
+// one genuinely new hardware ingredient this rule would need.
+
+const WN = 40;
+const W_EMPTY = 0, W_TREE = 1, W_FIRE = 2;
+const wfBoard = document.getElementById('wfBoard');
+wfBoard.style.gridTemplateColumns = `repeat(${WN}, 1fr)`;
+
+
+let wfGrid = new Uint8Array(WN * WN);
+let wfCells = [];
+let wfGeneration = 0, wfRunning = false, wfTimer = null;
+let wfBurnedTotal = 0;
+let wfP = 0.020;        // growth: empty -> tree
+let wfF = 0.00005;      // lightning: tree -> fire, spontaneously
+let wfFps = 10;
+
+const wfIdx = (x, y) => y * WN + x;
+
+for (let i = 0; i < WN * WN; i++) {
+  const d = document.createElement('div');
+  d.className = 'dot';
+  d.dataset.i = i;
+  wfBoard.appendChild(d);
+  wfCells.push(d);
+}
+
+function wfPaint(i) {
+  const el = wfCells[i];
+  const s = wfGrid[i];
+  el.classList.toggle('tree', s === W_TREE);
+  el.classList.toggle('fire', s === W_FIRE);
+  el.classList.remove('on');   // never reuse the Life 'on' look here
+}
+
+function wfPaintAll() { for (let i = 0; i < WN * WN; i++) wfPaint(i); }
+
+function wfAnyNeighborBurning(g, x, y) {
+  // the 8-input OR. The moment one input is high the answer is known,
+  // which is also why this is a single LUT level in hardware.
+  for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+    if (!dx && !dy) continue;
+    if (g[wfIdx((x + dx + WN) % WN, (y + dy + WN) % WN)] === W_FIRE) return true;
+  }
+  return false;
+}
+
+function wfStep() {
+  const next = new Uint8Array(WN * WN);
+  let flips = 0;
+  for (let y = 0; y < WN; y++) for (let x = 0; x < WN; x++) {
+    const i = wfIdx(x, y);
+    const s = wfGrid[i];
+    let ns;
+    if (s === W_FIRE) {
+      ns = W_EMPTY;                      // fire burns out in one step
+      wfBurnedTotal++;
+    } else if (s === W_TREE) {
+      ns = (wfAnyNeighborBurning(wfGrid, x, y) || Math.random() < wfF)
+           ? W_FIRE : W_TREE;            // spread, or rare lightning
+    } else {
+      ns = (Math.random() < wfP) ? W_TREE : W_EMPTY;   // regrowth
+    }
+    next[i] = ns;
+    if (ns !== s) { flips++; }
+  }
+  wfGrid = next;
+  wfGeneration++;
+  wfPaintAll();
+  clack(Math.min(flips, 60));   // reuse the console's clack, capped so
+                                // a big burn doesn't blow the speakers
+  wfStats();
+}
+
+function wfStats() {
+  let trees = 0, burning = 0;
+  for (let i = 0; i < WN * WN; i++) {
+    if (wfGrid[i] === W_TREE) trees++;
+    else if (wfGrid[i] === W_FIRE) burning++;
+  }
+  document.getElementById('wfGen').textContent = wfGeneration;
+  document.getElementById('wfTrees').textContent =
+    Math.round(100 * trees / (WN * WN));
+  document.getElementById('wfBurning').textContent = burning;
+  document.getElementById('wfBurned').textContent = wfBurnedTotal;
+  document.getElementById('wfBlindGen').textContent =
+    'GEN ' + String(wfGeneration).padStart(4, '0');
+}
+
+function wfPlant() {
+  for (let i = 0; i < WN * WN; i++)
+    wfGrid[i] = Math.random() < 0.45 ? W_TREE : W_EMPTY;
+  wfGeneration = 0; wfBurnedTotal = 0;
+  wfPaintAll(); wfStats();
+}
+
+function wfClear() {
+  wfGrid.fill(W_EMPTY);
+  wfGeneration = 0; wfBurnedTotal = 0;
+  wfPaintAll(); wfStats();
+}
+
+function wfStrike() {
+  // one bolt of lightning on a random tree, if any tree exists
+  const trees = [];
+  for (let i = 0; i < WN * WN; i++) if (wfGrid[i] === W_TREE) trees.push(i);
+  if (trees.length === 0) return;
+  const i = trees[Math.floor(Math.random() * trees.length)];
+  wfGrid[i] = W_FIRE;
+  wfPaint(i); wfStats();
+}
+
+// click the board: tree -> fire (your own lightning), empty -> tree
+wfBoard.addEventListener('pointerdown', e => {
+  const i = +e.target.dataset.i;
+  if (isNaN(i)) return;
+  wfGrid[i] = (wfGrid[i] === W_TREE) ? W_FIRE
+            : (wfGrid[i] === W_EMPTY) ? W_TREE : W_EMPTY;
+  wfPaint(i); wfStats();
+});
+
+function wfSetTimer() {
+  clearInterval(wfTimer);
+  if (wfRunning) wfTimer = setInterval(wfStep, 1000 / wfFps);
+}
+
+document.getElementById('wfPlayBtn').onclick = function () {
+  wfRunning = !wfRunning;
+  this.classList.toggle('live', wfRunning);
+  this.childNodes[1].textContent = wfRunning ? 'Pause' : 'Run';
+  wfSetTimer();
+};
+document.getElementById('wfStepBtn').onclick = wfStep;
+document.getElementById('wfPlantBtn').onclick = wfPlant;
+document.getElementById('wfStrikeBtn').onclick = wfStrike;
+document.getElementById('wfClearBtn').onclick = wfClear;
+
+document.getElementById('wfGrow').oninput = function () {
+  wfP = this.value / 1000;
+  document.getElementById('wfGrowVal').textContent =
+    (this.value / 10).toFixed(1) + '%';
+};
+document.getElementById('wfLight').oninput = function () {
+  wfF = this.value / 100000;
+  document.getElementById('wfLightVal').textContent =
+    this.value + ' / 100k';
+};
+document.getElementById('wfSpeed').oninput = function () {
+  wfFps = +this.value;
+  document.getElementById('wfSpdVal').textContent = wfFps + ' gen/s';
+  wfSetTimer();
 };
 
 // ---- tabs ----
@@ -1015,8 +1511,35 @@ setInterval(()=>{
   lf++;
 },200);
 
+// ---- slider fill: paint the track up to the thumb ----
+function syncRangeFill(r){
+  const pct = (r.value - r.min) / (r.max - r.min) * 100;
+  r.style.setProperty('--fill', pct + '%');
+}
+document.querySelectorAll('input[type=range]').forEach(r=>{
+  syncRangeFill(r);
+  r.addEventListener('input', ()=>syncRangeFill(r));
+});
+
+// ---- keyboard transport: Space = run/pause, S = step, on the active tab ----
+const TRANSPORT = {
+  'view-engine':   { play:'playBtn',       step:'stepBtn' },
+  'view-wildfire': { play:'wfPlayBtn',     step:'wfStepBtn' },
+  'view-live':     { play:'replayPlayBtn', step:'replayStepBtn' },
+};
+document.addEventListener('keydown', e=>{
+  const t0 = e.target;
+  if(t0 && t0.matches && t0.matches('input, select, textarea, button')) return;
+  const view = document.querySelector('.view.active');
+  const t = TRANSPORT[view && view.id];
+  if(!t) return;
+  if(e.code === 'Space'){ e.preventDefault(); document.getElementById(t.play).click(); }
+  else if(e.key === 's' || e.key === 'S'){ document.getElementById(t.step).click(); }
+});
+
 // boot
 randomize();
+wfPlant();
 setupLiveBoard(8, 8);
 </script>
 </body>

@@ -37,14 +37,44 @@ No dependencies, no build step. Open it in a browser.
   optional synthesized clack per generation, scaled to how many cells flipped.
 - Displays tab surveying real physical output media (flip-dot, split-flap,
   VFD, Nixie, LED matrix), with notes on how an FPGA would drive each one.
-- Live tab replays real decoded UART captures from the simulated chip, and
-  connects to real hardware over Web Serial.
+- Live tab replays real decoded UART captures from the simulated chip,
+  connects to real hardware over Web Serial, and (since Phase 4.5) sends
+  seeds back to the chip over the same cable.
+- Wildfire tab: the Drossel-Schwabl forest fire model, the console's first
+  multi-state, probabilistic rule. Trees grow, lightning strikes, fire
+  spreads to neighbors and burns out. Still purely local (each cell reads
+  only its eight neighbors), so it maps onto the same fabric: 2 bits of
+  state per cell, an 8-input OR instead of Life's popcount, and an LFSR
+  for the randomness.
 
 `software_prototype/parallelism_ladder/` benchmarks the same CA rule across
 five software substrates: naive Python threads, NumPy, multiprocessing, Numba.
 Full results in that folder's README.
 
 ## What actually fits on the chip
+
+Verified in simulation and analyzed against the real target (Gowin GW2A-18,
+Tang Primer 20K: 20,736 LUT4).
+
+| | per cell | max grid on GW2A-18 |
+|---|---|---|
+| default mapping | 66 LUT4 | ~22x22 |
+| `-nowidelut` | 13.6 LUT4 | **38x38** |
+
+- Early estimate capped the grid at ~22x22, based on ~66 LUT4-equivalents per
+  cell.
+- One 9-input boolean function costing 66 LUTs made no sense. Cause:
+  `synth_gowin`'s default mapping builds a tree of wide muxes (costing 2, 4,
+  and 8 LUT4s each) for the neighbor-count comparison.
+- Forbidding that with `-nowidelut` drops the cost to **13.6 LUT4 per cell, a
+  4.9x saving**, consistent at every grid size.
+- Verified **at the gate level**: the grid testbench runs against the actual
+  synthesized netlist, using Gowin's own primitive models, and matches
+  `golden_rule.py` bit for bit.
+- Critical path is 11 logic levels and **independent of grid size**. Every
+  cell reads registers and writes registers, so no signal crosses more than
+  one cell per clock. Growing the grid costs area, not clock speed. Software
+  doing the same work gets linearly slower; this does not.
 
 Details and methodology: [`hardware/synth/README.md`](hardware/synth/README.md).
 
@@ -56,7 +86,8 @@ Details and methodology: [`hardware/synth/README.md`](hardware/synth/README.md).
 | 2 | `ca_cell.v`: one cell's update rule as combinational Verilog, testbenched in isolation | done |
 | 3 | Parallel fabric: `generate` block instantiating `ca_cell` across the grid, toroidal wraparound, one shared clock | done |
 | 4 | UART streaming of live grid state off-chip to a PC visualizer | done |
-| 5 | Flip-dot driver stage: swap the output from UART/PC to real coil-driven hardware | next |
+| 4.5 | UART seed path in, generation pacer, flashable top with real pin constraints, full loopback verification | done |
+| 5 | Flash the Tang Primer 20K, then the flip-dot driver stage: swap the output from UART/PC to real coil-driven hardware | next |
 | 6 | Novelty extension: continuous-state rule (Lenia-style) or a second competing species (predator/prey) | stretch |
 
 ## Repo structure
@@ -71,9 +102,12 @@ ca-fpga-engine/
 │   ├── rtl/ca_cell.v               # one cell, verified against golden_rule.py
 │   ├── rtl/ca_grid.v               # N cells wired into a real grid
 │   ├── rtl/uart_tx.v               # sends one byte over one wire
+│   ├── rtl/uart_rx.v               # receives one byte over one wire
+│   ├── rtl/seed_loader.v           # turns received bytes into a grid seed
 │   ├── rtl/grid_streamer.v         # snapshots the grid, feeds uart_tx
-│   ├── rtl/cellnet_top.v           # the whole chip
-│   ├── synth/                      # resource analysis, gate-level verification
+│   ├── rtl/cellnet_top.v           # the whole chip, flashable as-is
+│   ├── host/send_seed.py           # PC-side seed sender for the real board
+│   ├── synth/                      # resource analysis, pin constraints, netlists
 │   └── tests/                      # cocotb testbenches for every module above
 ├── docs/
 │   └── media/

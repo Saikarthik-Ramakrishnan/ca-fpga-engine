@@ -1,0 +1,33 @@
+// cellnet_primer20k.cst
+//
+// Physical pin constraints for cellnet_top on the Tang Primer 20K dock
+// (GW2A-LV18PG256C8/I7). Pin numbers taken directly from Sipeed's own
+// example projects for this dock (UART_HELLO and the Litex port), not
+// from memory:
+//   clk     H11  27 MHz onboard oscillator
+//   rst_n   T5   dock key, pulled up, active low
+//   uart    M11 tx / T13 rx, wired to the BL616 USB-serial bridge, so
+//                the stream shows up as a plain /dev/tty* on the PC
+//   led     L16, L14  first two dock LEDs
+//
+// Load this in Gowin EDA alongside hardware/rtl/*.v with cellnet_top as
+// the top module. Remember the synthesis lesson from Phase 4: wide-mux
+// inference must stay off or the per-cell cost balloons ~5x.
+
+IO_LOC "clk" H11;
+IO_PORT "clk" IO_TYPE=LVCMOS33 PULL_MODE=UP BANK_VCCIO=3.3;
+
+IO_LOC "rst_n" T5;
+IO_PORT "rst_n" IO_TYPE=LVCMOS33 PULL_MODE=UP BANK_VCCIO=3.3;
+
+IO_LOC "rx_serial" T13;
+IO_PORT "rx_serial" IO_TYPE=LVCMOS33 PULL_MODE=NONE BANK_VCCIO=3.3;
+
+IO_LOC "tx_serial" M11;
+IO_PORT "tx_serial" IO_TYPE=LVCMOS33 PULL_MODE=UP DRIVE=8 BANK_VCCIO=3.3;
+
+IO_LOC "led[0]" L16;
+IO_PORT "led[0]" IO_TYPE=LVCMOS33;
+
+IO_LOC "led[1]" L14;
+IO_PORT "led[1]" IO_TYPE=LVCMOS33;

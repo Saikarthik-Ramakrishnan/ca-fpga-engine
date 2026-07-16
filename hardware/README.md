@@ -39,19 +39,27 @@ hardware/
 │   ├── ca_cell.v          # one cell
 │   ├── ca_grid.v          # N cells wired into a grid
 │   ├── uart_tx.v          # sends one byte over one wire
+│   ├── uart_rx.v          # receives one byte over one wire
+│   ├── seed_loader.v      # turns received bytes into a grid seed
 │   ├── grid_streamer.v    # snapshots the grid, feeds bytes to uart_tx
-│   └── cellnet_top.v      # the whole chip
-├── synth/                 # resource analysis, gate-level verification
+│   └── cellnet_top.v      # the whole chip, flashable as-is
+├── host/
+│   └── send_seed.py       # PC-side seed sender for the real board
+├── synth/                 # resource analysis, pin constraints, netlist checks
 └── tests/
-    ├── Makefile            # ca_cell only
+    ├── Makefile             # ca_cell only
     ├── Makefile.grid        # ca_cell + ca_grid
     ├── Makefile.uart        # uart_tx only
-    ├── Makefile.top         # the whole chip
+    ├── Makefile.rx          # uart_rx only
+    ├── Makefile.loader      # seed_loader only
+    ├── Makefile.loopback    # the whole chip, seed in + frames out
     ├── Makefile.postsynth   # the synthesized netlist, not the RTL
     ├── test_ca_cell.py
     ├── test_ca_grid.py
-    ├── test_uart_tx.py      # decodes real bytes off the wire
-    ├── test_cellnet_top.py  # decodes real grid snapshots off the wire
+    ├── test_uart_tx.py            # decodes real bytes off the wire
+    ├── test_uart_rx.py            # feeds real bit timing into the wire
+    ├── test_seed_loader.py        # protocol, byte order, timeout recovery
+    ├── test_cellnet_loopback.py   # full loop through the chip's real pins
     └── demos/               # capture + render a live run as a GIF
 ```
 
@@ -110,16 +118,16 @@ Getting live grid data off the chip.
   `0x80`) and decodes each straight off the simulated wire the way a real
   receiver would: wait for the line to fall, sample the middle of each bit
   period. All 8 matched.
-- `test_cellnet_top.py` reuses that decoder against the whole chip. The grid is
-  seeded with a glider, left to run freely, and a background task watches
-  `tx_serial`, decodes frames, and rebuilds the 64-bit grid value each
-  represents. Every decoded frame is checked against
-  `golden_rule.step_golden()`'s full generation log for that run.
+- The original `test_cellnet_top.py` seeded the grid through a test-only port
+  and verified every decoded frame against `golden_rule.step_golden()`. Phase
+  4.5 removed that port, so the test was retired and superseded by
+  `test_cellnet_loopback.py`, which proves strictly more: the same frame
+  checking, but seeded over the real UART wire.
 
 ```bash
 cd hardware/tests
-make -f Makefile.uart   # uart_tx alone
-make -f Makefile.top    # the whole chip, end to end
+make -f Makefile.uart       # uart_tx alone
+make -f Makefile.loopback   # the whole chip, end to end
 ```
 
 ## Watching it run
@@ -132,11 +140,104 @@ simulation run and renders them into a GIF, styled like the console.
   PC receiver would, not from reading the simulated grid's internal state.
 
 ```bash
-cd hardware/tests
-PYTHONPATH="$(pwd)/demos:$PYTHONPATH" make -f Makefile.top MODULE=demo_capture
-cd demos
+cd hardware/tests/demos
+make -f Makefile.demo
 python3 render_capture.py
 ```
 
 Writes `phase4_live_capture.gif` into `hardware/tests/demos/`. The Live tab in
 `cellnet_console.html` also loads the resulting `uart_capture.json` directly.
+
+# Phase 4.5: uart_rx.v, seed_loader.v, and a flashable cellnet_top.v
+
+Closing the loop. Until now data only flowed off the chip; the grid was
+seeded through a test-only input port that no real board exposes. Phase
+4.5 makes the chip listen on the other UART wire, which removes the last
+test-only port: `cellnet_top.v` now has exactly the pins the Tang Primer
+20K dock physically has (27 MHz clock, reset key, two UART wires, two
+LEDs) and can be flashed as-is with the constraints in
+`hardware/synth/cellnet_primer20k.cst`. Pin numbers were taken from
+Sipeed's own example projects for this dock, not guessed.
+
+- `uart_rx.v`: receives one byte, the mirror of `uart_tx.v`, plus the two
+  problems only a receiver has: a 2-flop synchronizer because the wire is
+  asynchronous to our clock, and mid-bit sampling with start-bit
+  confirmation so glitches and framing errors get dropped instead of
+  decoded as garbage.
+- `seed_loader.v`: the protocol. One `0x55` command byte, then a full
+  grid snapshot in the exact byte order `grid_streamer.v` sends frames
+  out (byte 0 = grid bits [7:0]). A stalled transfer times out and is
+  abandoned cleanly, so a pulled cable can never wedge the chip.
+- The generation pacer in `cellnet_top.v`: at 27 MHz the grid would run
+  27 million generations a second, so the chip deliberately idles between
+  steps. Instead of adding an enable pin to the exhaustively verified
+  `ca_cell`, the pacer reuses its existing load path: feeding the grid's
+  own state back through `seed` with `load` high freezes it in place, and
+  dropping `load` for exactly one clock computes exactly one generation.
+  `GEN_DIV` sets the rate (default 10 gen/s).
+
+## Verification
+
+- `test_uart_rx.py`: all 256 byte values sent back-to-back at exact bit
+  timing, a sub-bit glitch that must not decode, and a framing-broken
+  byte that must be dropped with clean recovery after. All pass.
+- `test_seed_loader.py`: byte-order correctness against the streamer
+  convention, noise ignored before the command byte (including `0xAA`,
+  which must never be mistaken for a command), timeout mid-transfer with
+  clean recovery, and back-to-back seeds. All pass.
+- `test_cellnet_loopback.py`: the chip exercised only through its real
+  pins. Frames before any seed must be all-zero; then a glider is
+  bit-banged in over `rx_serial` and every frame decoded off `tx_serial`
+  must match some generation of the golden model, in order (17 frames,
+  generations 0 through 36 in the committed run); then a mid-run reseed
+  with a blinker must take over the stream and visibly oscillate.
+- The loopback test caught a real sampling alias on its first run: with
+  the generation period an exact divisor of the frame period, every frame
+  latched the same blinker phase and a period-2 oscillator looked frozen.
+  The sim parameters now keep the two periods non-commensurate, and the
+  same reasoning applies when picking `GEN_DIV` for hardware.
+
+```bash
+cd hardware/tests
+make -f Makefile.rx
+make -f Makefile.loader
+make -f Makefile.loopback
+```
+
+One tooling note: each suite now builds in its own `sim_build_*`
+directory. cocotb only rebuilds when RTL sources change, not when
+Makefile parameters do, so suites sharing one build directory can
+silently run a stale binary with old parameters. That exact failure
+happened twice while building this phase.
+
+## What the full chip costs
+
+Measured with `hardware/synth/measure_top.py`, same LUT4-equivalent
+accounting as before, `-nowidelut` throughout. Phase 4.5 is not free per
+cell: the seed loader holds a full grid snapshot (one extra register per
+cell) and the pacer's hold path puts a real mux behind every cell's seed
+input.
+
+| grid  | bare grid LUT4 | full chip LUT4 | delta/cell | FF   | budget used | fits |
+|-------|----------------|----------------|------------|------|-------------|------|
+| 8x8   | 874            | 1,951          | 16.8       | 343  | 9.4%        | yes  |
+| 16x16 | 3,476          | 5,652          | 8.5        | 923  | 27.3%       | yes  |
+| 24x24 | 7,830          | 11,675         | 6.7        | 1,885| 56.3%       | yes  |
+| 32x32 | 13,924         | 20,189         | 6.1        | 3,231| 97.4%       | yes  |
+
+So the flashable ceiling is 32x32, and it is tight (97.4% of LUTs before
+place-and-route, which can only make things worse). The 38x38 figure from
+the Phase 4 analysis still stands, but only for the bare fabric without
+the seed path. 16x16 is the default build and the sensible first flash.
+
+## Talking to the real board
+
+```bash
+# seed the flashed board from the PC
+python3 hardware/host/send_seed.py --port /dev/ttyUSB1 --pattern glider --rows 16 --cols 16
+```
+
+The console's Live tab does the same job in the browser: connect over
+Web Serial, pick a pattern, Send Seed, and watch the pattern's evolution
+stream back onto the board. Same `0x55` protocol, byte-for-byte what the
+loopback test verified.

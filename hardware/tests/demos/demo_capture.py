@@ -2,9 +2,12 @@
 #
 # Not a correctness test -- this just runs the real simulated chip and
 # records what actually comes out over tx_serial, so we can turn it into
-# something you can watch. Same decoder proven in test_uart_tx.py and
-# test_cellnet_top.py, just used here to capture a sequence instead of
-# assert against it.
+# something you can watch. Same decoder proven in test_uart_tx.py, same
+# wire-level seeding proven in test_cellnet_loopback.py: as of Phase 4.5
+# the chip has no test-only ports, so even this demo talks to it purely
+# over rx_serial and tx_serial, exactly like a real PC would.
+#
+# Run with:  make -f Makefile.demo   (from this directory)
 
 import sys
 import os
@@ -16,12 +19,14 @@ from cocotb.triggers import RisingEdge
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from test_uart_tx import receive_uart_byte  # noqa: E402
+from test_uart_rx import send_uart_byte     # noqa: E402
 
 ROWS = 8
 COLS = 8
 NUM_BYTES = (ROWS * COLS) // 8
 CLKS_PER_BIT = 4
 SYNC_BYTE = 0xAA
+CMD_SEED = 0x55
 NUM_CYCLES = 12000  # long enough for a good number of frames
 
 
@@ -56,18 +61,19 @@ async def capture_live_stream(dut):
     clock = Clock(dut.clk, 2, unit="ns")
     cocotb.start_soon(clock.start())
 
+    dut.rx_serial.value = 1   # UART line idles high
     dut.rst_n.value = 0
-    dut.load.value = 0
-    dut.seed.value = 0
     await RisingEdge(dut.clk)
     dut.rst_n.value = 1
     await RisingEdge(dut.clk)
 
+    # seed the chip the only way it can be seeded now: over the wire.
     py_grid = random_grid(ROWS, COLS, density=0.25, seed=25)
-    dut.load.value = 1
-    dut.seed.value = grid_to_bits(py_grid, ROWS, COLS)
-    await RisingEdge(dut.clk)
-    dut.load.value = 0
+    bits = grid_to_bits(py_grid, ROWS, COLS)
+    await send_uart_byte(dut, CMD_SEED, CLKS_PER_BIT)
+    for byte_i in range(NUM_BYTES):
+        await send_uart_byte(dut, (bits >> (8 * byte_i)) & 0xFF,
+                             CLKS_PER_BIT)
 
     frames = []
     cocotb.start_soon(frame_collector(dut, frames))

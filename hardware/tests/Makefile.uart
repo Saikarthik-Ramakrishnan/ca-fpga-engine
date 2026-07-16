@@ -6,4 +6,8 @@ TOPLEVEL = uart_tx
 MODULE = test_uart_tx
 COMPILE_ARGS += -Puart_tx.CLKS_PER_BIT=4
 
+# own build dir: suites sharing sim_build serve each other stale binaries
+# (cocotb only rebuilds when sources change, not when the Makefile does)
+SIM_BUILD = sim_build_uart
+
 include $(shell cocotb-config --makefiles)/Makefile.sim

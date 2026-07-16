@@ -1,0 +1,11 @@
+SIM ?= icarus
+TOPLEVEL_LANG ?= verilog
+
+VERILOG_SOURCES += $(PWD)/../rtl/seed_loader.v
+TOPLEVEL = seed_loader
+MODULE = test_seed_loader
+COMPILE_ARGS += -Pseed_loader.NUM_BYTES=8 -Pseed_loader.TIMEOUT_CLKS=64
+
+SIM_BUILD = sim_build_loader
+
+include $(shell cocotb-config --makefiles)/Makefile.sim
