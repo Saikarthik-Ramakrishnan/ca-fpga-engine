@@ -14,26 +14,6 @@ electromechanical flip-dot display.
 - Flip-dot displays extend the same structure into hardware: one bistable
   coil-driven disc per cell, zero standing power after a flip.
 
-## Phase 1: software prototype
-
-`software_prototype/cellnet_console.html`. Single self-contained HTML file,
-no dependencies, no build step.
-
-- `update(alive, neighbors)` is a pure function of local state. Same signature
-  becomes one Verilog module.
-- Five rulesets: Conway, HighLife, Day & Night, Seeds, Maze.
-- Pattern bank: glider, LWSS, pulsar, R-pentomino, acorn, Gosper gun. Free-draw.
-- Flip-dot styling: squash-flip animation, optional synthesized clack scaled
-  to flips per generation.
-- Displays tab: survey of physical output media (flip-dot, split-flap, VFD,
-  Nixie, LED matrix) with FPGA drive notes.
-- Live tab: replays decoded UART captures, connects to real hardware over
-  Web Serial, sends seeds to the chip (Phase 4.5).
-- Wildfire tab: Drossel-Schwabl forest fire model. Multi-state, probabilistic,
-  still purely local. Hardware mapping: 2-bit state, 8-input OR, LFSR.
-
-`software_prototype/parallelism_ladder/`: same rule benchmarked across five
-software substrates. Results in that folder's README.
 
 ## Resource summary
 
