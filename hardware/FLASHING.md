@@ -1,101 +1,80 @@
 # Flashing CELL-NET onto the Tang Primer 20K
 
-Everything below uses the open toolchain. Gowin EDA works too (load the
-RTL, `synth/cellnet_primer20k.cst`, and `synth/cellnet_primer20k.sdc`,
-top module `cellnet_top`), but nothing here requires it.
+Open toolchain throughout. Gowin EDA also works: load `rtl/*.v`,
+`synth/cellnet_primer20k.cst`, `synth/cellnet_primer20k.sdc`, top module
+`cellnet_top`.
 
-## 0. What you need
+## 0. Requirements
 
-- Tang Primer 20K module seated on its dock, USB-C cable to the PC.
-- `openFPGALoader` (ships in the oss-cad-suite bundle, or via most
-  package managers).
-- A bitstream. Either use the prebuilt one in this repo:
+- Tang Primer 20K on its dock, USB-C to the PC.
+- `openFPGALoader` (in the oss-cad-suite bundle, or any package manager).
+- A bitstream:
 
 ```bash
+# prebuilt
 gunzip -k hardware/bitstreams/cellnet_16x16_tangprimer20k.fs.gz
-```
 
-  or rebuild it yourself from RTL (needs yosys + nextpnr-himbaechel +
-  apicula, all in one oss-cad-suite download; the script checks timing
-  against the 27 MHz dock clock and fails loudly if it is not met):
-
-```bash
+# or rebuild from RTL (yosys + nextpnr-himbaechel + apicula, one
+# oss-cad-suite download; fails if 27 MHz timing is missed)
 cd hardware
-./synth/build_bitstream.sh          # 16x16, the default build
+./synth/build_bitstream.sh
 ```
 
-The prebuilt 16x16 was placed and routed at a reported Fmax of
-240 MHz against the 27 MHz requirement, so timing is not a concern at
-this size.
+Prebuilt 16x16: routed Fmax 240 MHz against the 27 MHz requirement.
 
-## 1. Load it
+## 1. Load
 
 ```bash
-# into SRAM: instant, gone at power-off. Use this while iterating.
+# SRAM: instant, volatile. For iterating.
 openFPGALoader -b tangprimer20k cellnet_16x16.fs
 
-# into flash: persists across power cycles. Use this when happy.
+# flash: persists across power cycles.
 openFPGALoader -b tangprimer20k -f cellnet_16x16.fs
 ```
 
-If the board is not detected, it is almost always a cable or udev
-permissions issue; `openFPGALoader --detect` and running once with sudo
-narrows it down fast.
+Board undetected: check the cable, then `openFPGALoader --detect`, then udev
+permissions (one run with sudo isolates it).
 
-## 2. What you should see
+## 2. Expected state after configuration
 
-Immediately after configuration:
+- Both status LEDs off. Wiring assumes active-low, the usual Sipeed dock
+  convention. Both LEDs lit means the polarity assumption in `cellnet_top.v`
+  is wrong for your dock revision; flip the two `assign led[...]` lines.
+- Serial stream already running at 115200: one `0xAA` sync byte plus 32
+  payload bytes per frame, ~10 frames/s, all-zero payloads. Correct pre-seed
+  behavior per the loopback test.
+- The dock's BL616 exposes two serial ports over one cable. Empty port: try
+  the other.
 
-- Both status LEDs off (they are wired assuming active-low, the usual
-  Sipeed dock convention; if both are LIT instead, the polarity guess in
-  `cellnet_top.v` is wrong for your dock revision, and the fix is
-  flipping the two `assign led[...]` lines. Cosmetic only).
-- The chip is already streaming: all-zero frames at 115200 baud on the
-  USB-serial bridge, one `0xAA` sync byte then 32 payload bytes per
-  frame, about 10 frames per second. The grid is empty and held; that is
-  correct pre-seed behavior, proven by the loopback test.
-
-The dock's BL616 exposes two serial ports over the one USB cable. If a
-port shows nothing, try the other one.
-
-## 3. Seed it
-
-From the PC:
+## 3. Seed
 
 ```bash
 pip install pyserial
 python3 hardware/host/send_seed.py --port /dev/ttyUSB1 --pattern glider --rows 16 --cols 16
 ```
 
-- The first status LED latches on: the chip has accepted its first seed.
-- The frame stream switches from zeros to a glider walking the torus at
-  10 generations per second.
+- First status LED latches on after the first accepted seed.
+- Frame stream switches to the glider at 10 gen/s.
 
-Or do the whole thing in the browser: open
-`software_prototype/cellnet_console.html` in Chrome or Edge (served over
-`http://localhost`, not `file://`), Live tab, Connect at 115200 with
-rows/cols 16/16, then Send Seed. The board on screen from then on is the
-FPGA's actual state, not a simulation.
+Browser route: `software_prototype/cellnet_console.html` in Chrome or Edge,
+served over `http://localhost`, Live tab, Connect at 115200 with rows/cols
+16/16, Send Seed.
 
-## 4. If frames look wrong
+## 4. Triage
 
-- Garbage bytes, no 0xAA sync: baud mismatch, or the other serial port.
-- Sync fine but the pattern never changes: the grid is held; a seed
-  never arrived. Check you are writing to the same port you read from.
-- Pattern changes but looks torn between frames: it is not torn; the
-  streamer latches atomically (that race was found and fixed by the
-  Phase 4 testbench). What tearing-like artifacts actually mean is the
-  reader dropped bytes and lost frame alignment; resync on the next 0xAA.
+- Garbage bytes, no `0xAA`: baud mismatch or wrong serial port.
+- Sync fine, pattern static: no seed arrived. Confirm the write port matches
+  the read port.
+- Torn-looking frames: dropped bytes on the reader side; resync on the next
+  `0xAA`. The streamer latches snapshots atomically (race found and fixed by
+  the Phase 4 testbench).
 
-## 5. Rebuilding at other sizes
+## 5. Other sizes
 
 ```bash
-./synth/build_bitstream.sh 24 24    # comfortable middle size
-./synth/build_bitstream.sh 32 32    # the ceiling; routed at 72% LUT4, Fmax 176 MHz
+./synth/build_bitstream.sh 24 24
+./synth/build_bitstream.sh 32 32    # routed at 72% LUT4, Fmax 176 MHz
 ```
 
-A prebuilt 32x32 also ships in `bitstreams/`, same protocol, just pass
-`--rows 32 --cols 32` everywhere.
-
-Remember to pass matching `--rows/--cols` to `send_seed.py` and the
-console; the seed payload length is baked into the bitstream.
+A prebuilt 32x32 is in `bitstreams/`. Pass matching `--rows/--cols` to
+`send_seed.py` and the console; payload length is fixed by the bitstream.
