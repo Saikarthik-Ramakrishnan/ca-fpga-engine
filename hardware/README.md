@@ -225,10 +225,15 @@ input.
 | 24x24 | 7,830          | 11,675         | 6.7        | 1,885| 56.3%       | yes  |
 | 32x32 | 13,924         | 20,189         | 6.1        | 3,231| 97.4%       | yes  |
 
-So the flashable ceiling is 32x32, and it is tight (97.4% of LUTs before
-place-and-route, which can only make things worse). The 38x38 figure from
-the Phase 4 analysis still stands, but only for the bare fabric without
-the seed path. 16x16 is the default build and the sensible first flash.
+So the flashable ceiling by the pre-route LUT4-equivalent accounting is
+32x32 at 97.4%. Actual place and route (Phase 5a) came in kinder: nextpnr
+maps the adder trees onto the chip's dedicated ALU carry cells, so the
+routed 32x32 uses 72% of LUT4s plus 27% of ALUs and still closes timing
+at 176 MHz. Both accountings are reported because they answer different
+questions; the routed numbers are the ones that bind. The 38x38 figure
+from the Phase 4 analysis still stands, but only for the bare fabric
+without the seed path. 16x16 is the default build and the sensible first
+flash.
 
 ## Talking to the real board
 
@@ -241,3 +246,30 @@ The console's Live tab does the same job in the browser: connect over
 Web Serial, pick a pattern, Send Seed, and watch the pattern's evolution
 stream back onto the board. Same `0x55` protocol, byte-for-byte what the
 loopback test verified.
+
+# Phase 5a: a real bitstream, no vendor tools
+
+The full RTL-to-bitstream flow now runs on the open toolchain: Yosys
+synthesis (`-nowidelut`, as always), nextpnr-himbaechel place and route
+with Apicula's GW2A-18 support, and `gowin_pack` to the final `.fs`.
+One script does all three and refuses to hand over a bitstream that
+misses timing:
+
+```bash
+cd hardware
+./synth/build_bitstream.sh          # 16x16 default
+./synth/build_bitstream.sh 24 24    # any size
+```
+
+The shipped 16x16 build placed, routed, and closed timing with a
+reported Fmax of 240.38 MHz against the 27 MHz dock clock, a margin of
+almost 9x. That number is nextpnr's post-route static timing analysis,
+not an estimate. The prebuilt bitstream lives in
+`bitstreams/cellnet_16x16_tangprimer20k.fs.gz` (the `.fs` format is
+ASCII bits, so it compresses 45:1), and `FLASHING.md` walks through
+loading it, what the LEDs and the serial stream should look like, and
+how to seed the running chip from `send_seed.py` or the console's Live
+tab. The 32x32 ceiling build was also placed and routed: 72% LUT4, 27% ALU,
+20% FF, Fmax 176.46 MHz, and its bitstream ships alongside the 16x16.
+The only step left in Phase 5 that needs anything other than this repo
+is plugging the board in.

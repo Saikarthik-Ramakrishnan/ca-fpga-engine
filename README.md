@@ -87,7 +87,9 @@ Details and methodology: [`hardware/synth/README.md`](hardware/synth/README.md).
 | 3 | Parallel fabric: `generate` block instantiating `ca_cell` across the grid, toroidal wraparound, one shared clock | done |
 | 4 | UART streaming of live grid state off-chip to a PC visualizer | done |
 | 4.5 | UART seed path in, generation pacer, flashable top with real pin constraints, full loopback verification | done |
-| 5 | Flash the Tang Primer 20K, then the flip-dot driver stage: swap the output from UART/PC to real coil-driven hardware | next |
+| 5a | Real bitstream built with the open toolchain (Yosys + nextpnr + Apicula), timing verified at 27 MHz, prebuilt .fs shipped in the repo with a flashing guide | done |
+| 5b | Physically flash the Tang Primer 20K and close the loop against the console | next, needs the board |
+| 6 | Flip-dot driver stage: swap the output from UART/PC to real coil-driven hardware | later |
 | 6 | Novelty extension: continuous-state rule (Lenia-style) or a second competing species (predator/prey) | stretch |
 
 ## Repo structure
@@ -107,6 +109,8 @@ ca-fpga-engine/
 │   ├── rtl/grid_streamer.v         # snapshots the grid, feeds uart_tx
 │   ├── rtl/cellnet_top.v           # the whole chip, flashable as-is
 │   ├── host/send_seed.py           # PC-side seed sender for the real board
+│   ├── bitstreams/                 # prebuilt, ready-to-flash .fs (gzipped)
+│   ├── FLASHING.md                 # board bring-up guide
 │   ├── synth/                      # resource analysis, pin constraints, netlists
 │   └── tests/                      # cocotb testbenches for every module above
 ├── docs/
