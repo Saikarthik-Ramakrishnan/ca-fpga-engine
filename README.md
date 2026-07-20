@@ -1,7 +1,7 @@
 # Massively Parallel Cellular Automaton Engine
 
 Cellular automaton engine for parallel hardware. Every cell is an independent
-logic unit; all cells update on the same clock edge. Target output: an
+logic unit; all cells update on the same clock edge. The Target output is an
 electromechanical flip-dot display.
 
 ![CELL·NET console running a Gosper glider gun](docs/media/cellnet_demo.gif)
