@@ -17,35 +17,8 @@ electromechanical flip-dot display.
 
 ## Resource summary
 
-Target: Gowin GW2A-18, Tang Primer 20K. 20,736 LUT4.
-
-| | per cell | max grid |
-|---|---|---|
-| default mapping | 66 LUT4 | ~22x22 |
-| `-nowidelut` | 13.6 LUT4 | 38x38 |
-
-- Default `synth_gowin` maps the neighbor-count comparison to wide muxes
-  (2/4/8 LUT4 each). `-nowidelut` forces plain LUT decomposition: 4.9x saving.
-- Verified at gate level: synthesized netlist passes the grid testbench
-  against `golden_rule.py`, using Gowin primitive models.
-- Critical path: 11 logic levels, independent of grid size. Every cell reads
-  and writes registers. Grid growth costs area; Fmax is unchanged.
-
 Methodology: [`hardware/synth/README.md`](hardware/synth/README.md).
 
-## Roadmap
-
-| Phase | Goal | Status |
-|---|---|---|
-| 1 | Software prototype: rule and visual target | done |
-| 2 | `ca_cell.v`: one cell as combinational Verilog, testbenched | done |
-| 3 | Parallel fabric: `generate` grid, toroidal wrap, one clock | done |
-| 4 | UART streaming of live grid state to a PC visualizer | done |
-| 4.5 | UART seed path, generation pacer, flashable top, loopback verification | done |
-| 5a | Bitstreams built on the open toolchain, timing closed at 27 MHz, prebuilt .fs in repo | done |
-| 5b | Flash the Tang Primer 20K, close the loop against the console | next, needs board |
-| 6 | Flip-dot driver stage: coil-driven output | later |
-| 7 | Continuous-state rule (Lenia-style) or competing species | stretch |
 
 ## Repo structure
 
