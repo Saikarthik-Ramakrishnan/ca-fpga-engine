@@ -1,4 +1,4 @@
-# C++ engine: concurrency, correctness proof, laptop vs FPGA
+# C++ Parallel Engine
 
 The parallel CA engine in C++20, with every shared variable accounted for,
 checked against `golden_rule.py`, and timed against the FPGA fabric.
