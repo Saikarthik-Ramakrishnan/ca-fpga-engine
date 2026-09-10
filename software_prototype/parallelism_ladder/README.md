@@ -1,4 +1,4 @@
-# Parallelism Ladder
+# Software Parallelism Benchmark
 
 Same rule as the console (Conway B3/S23, toroidal wrap) run on five software
 substrates. Built before the Verilog to put numbers on software parallelism
@@ -13,7 +13,7 @@ limits.
 | 3. NumPy | `tier3_numpy.py` | Vectorized neighbor count via `np.roll`. One core. |
 | 4. Multiprocessing(4) | `tier4_multiprocessing.py` | 4 OS processes, ring-topology halo exchange per generation. |
 | 5. Numba | `tier5_numba.py` | `@njit(parallel=True)` + `prange`. JIT-compiled, multi-core. |
-| 6. FPGA fabric | `tier6_fabric.py` | One generation per clock edge. A throughput model built from measured numbers, not a run. |
+| 6. FPGA fabric | `tier6_fabric.py` | One generation per clock edge. A throughput model built from measured inputs. |
 
 `golden_rule.py` is the single reference. Run `verify_correctness.py` before
 trusting any timing.
@@ -75,20 +75,20 @@ python3 tier6_fabric.py --csv --plot
 | 128x128 | numba | 7,349 | n/a | n/a | no, 10.7x the LUT4 budget |
 
 - The fabric row is flat because one generation takes one clock edge whatever
-  the grid size. Adding cells adds area, not time. Every software row slopes
+  the grid size. Adding cells costs area and leaves the time per generation unchanged. Every software row slopes
   down. That divergence is the whole argument.
 - Where the fabric loses is capacity, and the table says so: past 32x32 it
   does not fit on this part at all, while software just gets slower.
-- Headroom, from routed timing rather than the dock clock: 240.38 MHz at
+- Headroom, from routed timing: 240.38 MHz at
   16x16 and 176.46 MHz at 32x32, both far above the 27 MHz requirement. The
-  oscillator binds on this board, not the fabric.
+  oscillator is the limit on this board.
 - What you can watch is far slower on purpose: the UART carries about 350
   frames/s at 16x16, and `GEN_DIV` holds the fabric to 10 generations/s.
 
 This is a model, and it is labelled as one everywhere it appears. The
 software figures are timings from a running CPU. The fabric figures come
 from post-route static timing analysis of a design that has not been flashed
-yet. The one modelling step is structural rather than estimated: one
+yet. The one modelling step is structural: one
 generation per clock edge, independent of grid size.
 
 Every input comes from a number already recorded in this repo: `results.csv`,
