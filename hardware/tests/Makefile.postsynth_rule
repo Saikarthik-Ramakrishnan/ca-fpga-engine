@@ -1,0 +1,21 @@
+SIM ?= icarus
+TOPLEVEL_LANG ?= verilog
+
+# Post-synthesis verification of the CONFIGURABLE fabric: simulate the
+# gate-level netlist synth_gowin -nowidelut produced for ca_grid_rule,
+# with Gowin's own primitive models, against the same testbench the RTL
+# passes. If the mapped gates run all five rulesets correctly, the rule
+# lookup survived synthesis intact.
+#
+# Generate the netlist first:
+#   cd hardware/synth && RULE=1 python3 emit_netlist.py
+VERILOG_SOURCES += /usr/share/yosys/gowin/cells_sim.v
+VERILOG_SOURCES += $(PWD)/../synth/build/ca_grid_rule_netlist.v
+
+TOPLEVEL = ca_grid_rule
+MODULE = test_ca_grid_rule
+
+# own build dir: suites sharing sim_build serve each other stale binaries
+SIM_BUILD = sim_build_postsynth_rule
+
+include $(shell cocotb-config --makefiles)/Makefile.sim

@@ -1,0 +1,10 @@
+{
+  "rows": 32,
+  "cols": 32,
+  "gen_div": 1,
+  "rule": "conway B3/S23",
+  "generations_measured": 64,
+  "clocks_per_generation_min": 1,
+  "clocks_per_generation_max": 1,
+  "method": "cycle-accurate RTL simulation (Icarus), cellnet_top, grid_state compared with golden_rule.py every clock"
+}

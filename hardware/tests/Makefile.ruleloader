@@ -1,0 +1,14 @@
+SIM ?= icarus
+TOPLEVEL_LANG ?= verilog
+
+VERILOG_SOURCES += $(PWD)/../rtl/uart_rx.v
+VERILOG_SOURCES += $(PWD)/../rtl/rule_loader.v
+VERILOG_SOURCES += $(PWD)/../rtl/seed_loader.v
+VERILOG_SOURCES += $(PWD)/tb_command_stack.v
+TOPLEVEL = tb_command_stack
+MODULE = test_rule_loader
+
+# own build dir: suites sharing sim_build serve each other stale binaries
+SIM_BUILD = sim_build_ruleloader
+
+include $(shell cocotb-config --makefiles)/Makefile.sim

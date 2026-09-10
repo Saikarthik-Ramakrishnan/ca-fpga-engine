@@ -48,13 +48,17 @@ FF_CELLS = {"DFF", "DFFC", "DFFE", "DFFCE", "DFFP", "DFFPE", "DFFR", "DFFRE",
 IGNORE = {"IBUF", "OBUF", "GND", "VCC", "TBUF", "IOBUF"}
 
 
-def synth(top: str, rows: int, cols: int, sources: list, nowidelut: bool = False) -> dict:
-    """Run yosys synth_gowin with the given grid parameters, return primitive counts."""
+def synth(top: str, rows: int, cols: int, sources: list, nowidelut: bool = False,
+          params: dict = None) -> dict:
+    """Run yosys synth_gowin with the given grid parameters, return primitive
+    counts. `params` sets any extra module parameters beyond ROWS/COLS, which
+    is how measure_rule_cost.py flips cellnet_top's RULE_CFG."""
     src_paths = " ".join(os.path.join(RTL_DIR, s) for s in sources)
     flags = " -nowidelut" if nowidelut else ""
+    extra = "".join(f" -set {k} {v}" for k, v in (params or {}).items())
     script = (
         f"read_verilog {src_paths}; "
-        f"chparam -set ROWS {rows} -set COLS {cols} {top}; "
+        f"chparam -set ROWS {rows} -set COLS {cols}{extra} {top}; "
         f"synth_gowin -top {top}{flags}"
     )
     result = subprocess.run(

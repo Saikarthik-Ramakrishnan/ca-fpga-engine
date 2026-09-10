@@ -60,11 +60,37 @@ Browser route: `software_prototype/cellnet_console.html` in Chrome or Edge,
 served over `http://localhost`, Live tab, Connect at 115200 with rows/cols
 16/16, Send Seed.
 
+## 3b. Set the rule
+
+Only on a `RULE_CFG=1` bitstream, which is the default. The chip comes up on
+Conway, so this step is optional.
+
+```bash
+python3 hardware/host/send_seed.py --port /dev/ttyUSB1 --rule highlife --pattern glider --rows 16 --cols 16
+```
+
+- Sends `33 48 0C 00` then the seed. The rule goes first so the pattern's
+  first generation already runs under it.
+- A rule change with no `--pattern` applies to whatever is already on the
+  fabric; the grid carries on from its live state under the new rule.
+- Console equivalent: Live tab, rule dropdown, Send Rule. The packet
+  inspector shows the exact bytes before they go out.
+- On a `RULE_CFG=0` bitstream the chip ignores `0x33` silently. There is no
+  error to see, on the board or on the host; the rule simply does not change.
+- Check what would go out without a board attached:
+
+```bash
+python3 hardware/host/send_seed.py --dry-run --rule daynight --pattern glider
+```
+
 ## 4. Triage
 
 - Garbage bytes, no `0xAA`: baud mismatch or wrong serial port.
 - Sync fine, pattern static: no seed arrived. Confirm the write port matches
   the read port.
+- Seed lands but evolves under the wrong rule: the bitstream is `RULE_CFG=0`,
+  which ignores `0x33`. Rebuild with the default, or check the packet with
+  `--dry-run` against the table in `docs/PROTOCOL.md`.
 - Torn-looking frames: dropped bytes on the reader side; resync on the next
   `0xAA`. The streamer latches snapshots atomically (race found and fixed by
   the Phase 4 testbench).
@@ -74,7 +100,14 @@ served over `http://localhost`, Live tab, Connect at 115200 with rows/cols
 ```bash
 ./synth/build_bitstream.sh 24 24
 ./synth/build_bitstream.sh 32 32    # routed at 72% LUT4, Fmax 176 MHz
+
+# the smaller fixed-Conway fabric, if the configurable one stops fitting
+RULE_CFG=0 ./synth/build_bitstream.sh 32 32
 ```
+
+The routed figures above are for the fixed-rule chip built in Phase 5a. The
+configurable fabric has not been through place and route yet; run
+`synth/measure_rule_cost.py` for its area before assuming a size fits.
 
 A prebuilt 32x32 is in `bitstreams/`. Pass matching `--rows/--cols` to
 `send_seed.py` and the console; payload length is fixed by the bitstream.

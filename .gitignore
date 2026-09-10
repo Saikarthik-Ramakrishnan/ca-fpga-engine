@@ -8,3 +8,8 @@ results.xml
 hardware/tests/demos/phase4_live_capture.gif
 hardware/synth/build/
 docs/media/frames/
+.claude/
+software_prototype/cpp/build/
+hardware/tests/sim_build_*/
+hardware/tests/results.xml
+hardware/tests/__pycache__/

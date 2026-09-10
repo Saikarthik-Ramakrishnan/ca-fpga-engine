@@ -1,0 +1,15 @@
+{
+  "rows": 16,
+  "cols": 16,
+  "clks_per_bit": 234,
+  "baud": 115200,
+  "f_clk_hz": 27000000,
+  "payload_bytes": 32,
+  "seed_transfer_clocks": 77220,
+  "frame_period_clocks": 77320,
+  "frames_observed": 3,
+  "seed_to_frame_clocks_measured": 77299,
+  "seed_to_frame_clocks_min": 77086,
+  "seed_to_frame_clocks_max": 154640,
+  "method": "cycle-accurate RTL simulation (Icarus), cellnet_top, real pins only"
+}

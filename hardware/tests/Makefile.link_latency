@@ -1,0 +1,29 @@
+SIM ?= icarus
+TOPLEVEL_LANG ?= verilog
+
+VERILOG_SOURCES += $(PWD)/../rtl/ca_cell.v
+VERILOG_SOURCES += $(PWD)/../rtl/ca_grid.v
+VERILOG_SOURCES += $(PWD)/../rtl/ca_cell_rule.v
+VERILOG_SOURCES += $(PWD)/../rtl/ca_grid_rule.v
+VERILOG_SOURCES += $(PWD)/../rtl/uart_tx.v
+VERILOG_SOURCES += $(PWD)/../rtl/uart_rx.v
+VERILOG_SOURCES += $(PWD)/../rtl/seed_loader.v
+VERILOG_SOURCES += $(PWD)/../rtl/rule_loader.v
+VERILOG_SOURCES += $(PWD)/../rtl/grid_streamer.v
+VERILOG_SOURCES += $(PWD)/../rtl/cellnet_top.v
+TOPLEVEL = cellnet_top
+MODULE = test_link_latency
+
+# The real 16x16 build: 27 MHz / 115200 baud = 234 clocks per bit, and the
+# deployed pacer (10 generations per second), which holds the grid still
+# for the whole simulation so the measurement is the link alone.
+COMPILE_ARGS += -Pcellnet_top.ROWS=16
+COMPILE_ARGS += -Pcellnet_top.COLS=16
+COMPILE_ARGS += -Pcellnet_top.CLKS_PER_BIT=234
+COMPILE_ARGS += -Pcellnet_top.GEN_DIV=2700000
+COMPILE_ARGS += -Pcellnet_top.TIMEOUT_CLKS=2700000
+COMPILE_ARGS += -Pcellnet_top.RULE_CFG=1
+
+SIM_BUILD = sim_build_link_latency
+
+include $(shell cocotb-config --makefiles)/Makefile.sim

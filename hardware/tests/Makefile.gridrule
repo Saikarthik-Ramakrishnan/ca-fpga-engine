@@ -1,0 +1,12 @@
+SIM ?= icarus
+TOPLEVEL_LANG ?= verilog
+
+VERILOG_SOURCES += $(PWD)/../rtl/ca_cell_rule.v
+VERILOG_SOURCES += $(PWD)/../rtl/ca_grid_rule.v
+TOPLEVEL = ca_grid_rule
+MODULE = test_ca_grid_rule
+
+# own build dir: suites sharing sim_build serve each other stale binaries
+SIM_BUILD = sim_build_gridrule
+
+include $(shell cocotb-config --makefiles)/Makefile.sim

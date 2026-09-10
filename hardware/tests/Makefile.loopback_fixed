@@ -14,20 +14,17 @@ VERILOG_SOURCES += $(PWD)/../rtl/cellnet_top.v
 TOPLEVEL = cellnet_top
 MODULE = test_cellnet_loopback
 
-# sim-scale parameters: 8x8 grid, 4 clocks per UART bit, one generation
-# every 200 clocks, seed timeout shrunk to stay proportionate.
+# Identical to Makefile.loopback except RULE_CFG=0: the smaller fabric with
+# Conway welded into the gates and no rule_loader. Running the same
+# testbench against both builds is what makes "RULE_CFG picks the fabric,
+# nothing else changes" a checked claim rather than a comment.
 COMPILE_ARGS += -Pcellnet_top.ROWS=8
 COMPILE_ARGS += -Pcellnet_top.COLS=8
 COMPILE_ARGS += -Pcellnet_top.CLKS_PER_BIT=4
 COMPILE_ARGS += -Pcellnet_top.GEN_DIV=170
 COMPILE_ARGS += -Pcellnet_top.TIMEOUT_CLKS=2000
+COMPILE_ARGS += -Pcellnet_top.RULE_CFG=0
 
-# RULE_CFG is left at its default of 1, so this suite exercises the
-# configurable fabric running its reset-default Conway masks. That is the
-# compatibility claim for the default build: a chip nobody sends a rule to
-# must behave exactly like the Phase 4.5 chip did. Makefile.loopback_fixed
-# runs the same test against RULE_CFG=0.
-
-SIM_BUILD = sim_build_loopback
+SIM_BUILD = sim_build_loopback_fixed
 
 include $(shell cocotb-config --makefiles)/Makefile.sim

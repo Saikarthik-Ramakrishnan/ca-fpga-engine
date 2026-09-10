@@ -151,32 +151,68 @@
     }
   }
 
-  .masthead{ margin:14px 0 42px; }
+  /* ---------- nameplate: what a real instrument puts on its face ----------
+     Replaces a repeated 68px wordmark. The name is already in the bar
+     above; what belongs here is the machine's identity plus the four
+     numbers that define it. Left identifies, right specifies, hairline
+     between. Every figure is measured and lives in the repo. */
+  .masthead{
+    margin:4px 0 30px;
+    display:grid;
+    grid-template-columns:minmax(0,1fr) auto;
+    gap:34px; align-items:end;
+    padding-bottom:20px;
+    border-bottom:1px solid var(--line);
+  }
   .masthead h1{
     font-family:'Geist', sans-serif;
-    font-weight:700;
-    font-size:clamp(40px, 6.5vw, 68px);
-    line-height:1.02;
-    letter-spacing:0.05em;
-    margin:0 0 14px;
+    font-weight:600;
+    font-size:clamp(22px, 2.6vw, 30px);
+    line-height:1.1;
+    letter-spacing:0.04em;
+    margin:0 0 9px;
     color:var(--text);
   }
-  .masthead h1 b{ color:var(--amber); font-weight:700; }
+  .masthead h1 b{ color:var(--amber); font-weight:600; }
   .masthead p{
-    font-size:14.5px; line-height:1.65; color:var(--text-dim);
-    max-width:58ch; margin:0;
+    font-size:13px; line-height:1.6; color:var(--text-dim);
+    max-width:52ch; margin:0;
   }
   .masthead p b{ color:var(--text); font-weight:500; }
+
+  .np-spec{ display:flex; gap:0; }
+  .np-spec .sp{ padding:0 18px; }
+  .np-spec .sp:first-child{ padding-left:0; }
+  .np-spec .sp:last-child{ padding-right:0; }
+  .np-spec .sp + .sp{ border-left:1px solid var(--line); }
+  .np-spec .sk{
+    font-family:'Geist Mono', monospace;
+    font-size:8.5px; letter-spacing:0.16em; text-transform:uppercase;
+    color:var(--text-faint); margin-bottom:6px; white-space:nowrap;
+  }
+  .np-spec .sv{
+    font-family:'Geist Mono', monospace;
+    font-size:13px; font-weight:500; line-height:1;
+    color:var(--text-dim); white-space:nowrap;
+    font-variant-numeric:tabular-nums;
+  }
+  .np-spec .sv b{ color:var(--text); font-weight:600; }
+  @media (max-width:960px){
+    .masthead{ grid-template-columns:1fr; gap:22px; align-items:start; }
+    .np-spec{ flex-wrap:wrap; row-gap:16px; }
+  }
   @media (max-width:620px){
-    .masthead{ margin:6px 0 30px; }
+    .masthead{ margin:2px 0 22px; }
+    .np-spec .sp{ padding:0 14px 0 0; }
+    .np-spec .sp + .sp{ border-left:none; }
   }
 
+  /* lead paragraph, not a pull quote. The old left-rule callout read as
+     a blockquote competing with the instrument beside it. */
   .thesis{
-    font-size:12.5px; line-height:1.7; color:var(--text-dim);
-    border-left:2px solid var(--amber-deep);
-    padding:2px 0 2px 16px;
-    margin:0 0 26px;
-    max-width:70ch;
+    font-size:13px; line-height:1.7; color:var(--text-dim);
+    margin:0 0 24px;
+    max-width:76ch;
   }
   .thesis b{ color:var(--text); font-weight:500; }
   .thesis .em{ color:var(--amber); }
@@ -184,12 +220,16 @@
   /* ---------- the cockpit deck: stage left, rack right ---------- */
   .deck{
     display:grid;
-    grid-template-columns:minmax(0,1.35fr) minmax(320px,1fr);
-    gap:30px;
-    align-items:start;
+    grid-template-columns:minmax(0,1.42fr) minmax(330px,1fr);
+    gap:26px;
+    align-items:stretch;
   }
   @media (min-width:961px){
-    .stage-col{ position:sticky; top:80px; }
+    .stage-col{ position:sticky; top:80px; align-self:start; }
+    /* the rack is a control column, not a card that ran out of content:
+       it runs the height of the bay so no void opens beside the board */
+    .rack-col{ display:flex; }
+    .rack-col > .console{ flex:1; }
   }
 
   /* ---------- stage: the board panel ---------- */
@@ -251,27 +291,34 @@
   }
 
   /* ---------- readouts: one strip, hairline-divided ---------- */
+  /* readouts belong ON the instrument, the way a real panel puts its
+     meters under the display. Merging them into .board-shell removes a
+     redundant card and makes the board panel the single object on the
+     stage rather than one of two stacked boxes. The first cell is the
+     primary reading and is weighted accordingly; equal cells would be
+     four numbers with no hierarchy. */
   .readouts{
-    margin-top:14px;
-    display:grid; grid-template-columns:repeat(4,1fr);
-    background:var(--ink-1);
-    border:1px solid var(--line);
-    border-radius:var(--r-panel);
-    overflow:hidden;
+    display:grid; grid-template-columns:1.25fr 1fr 1fr 1fr;
+    border-top:1px solid var(--line);
+    background:linear-gradient(180deg, rgba(0,0,0,0.18), transparent);
   }
-  .ro{ padding:13px 16px 11px; }
+  .ro{ padding:12px 16px 13px; min-width:0; }
   .ro + .ro{ border-left:1px solid var(--line); }
   .ro .rl{
     font-family:'Geist Mono', monospace;
     font-size:8.5px; letter-spacing:0.16em; text-transform:uppercase;
-    color:var(--text-faint); margin-bottom:5px;
+    color:var(--text-faint); margin-bottom:6px;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
   }
   .ro .rv{
     font-family:'Geist Mono', monospace;
-    font-weight:600; font-size:23px; line-height:1;
-    color:var(--amber);
+    font-weight:600; font-size:20px; line-height:1;
+    color:var(--text-dim);
     font-variant-numeric:tabular-nums;
   }
+  /* only the primary reading carries the accent; four amber numbers in a
+     row is decoration, one is a focal point */
+  .ro:first-child .rv{ color:var(--amber); font-size:24px; }
 
   /* ---------- rack: the control column ---------- */
   .console{
@@ -279,6 +326,11 @@
     border:1px solid var(--line);
     border-radius:var(--r-panel);
     padding:20px;
+    /* column so the wire block's margin-top:auto seats it at the panel
+       foot: controls group at the top, the hardware truth at the bottom,
+       and the leftover height becomes deliberate separation instead of a
+       gap under the last control */
+    display:flex; flex-direction:column;
   }
   .console-section + .console-section{
     margin-top:18px; padding-top:18px;
@@ -289,6 +341,48 @@
     font-size:9.5px; letter-spacing:0.2em; text-transform:uppercase;
     color:var(--text-faint); margin-bottom:11px;
   }
+
+  /* ---------- rule-on-the-wire: what fills the bottom of the rack ----------
+     The control column was shorter than the board, leaving a void. Rather
+     than pad it, it now carries the one thing that connects this tab to
+     the hardware: the selected rule as the exact 18 bits ca_cell_rule.v
+     indexes and the exact 4 bytes rule_loader.v decodes. Same encoder the
+     Live tab and the testbenches use, so it cannot drift. */
+  .wire{ margin-top:auto; padding-top:18px; border-top:1px solid var(--line); }
+  .wire-rows{ display:grid; gap:9px; }
+  .wire-row{
+    display:grid; grid-template-columns:58px 1fr;
+    align-items:baseline; gap:12px;
+  }
+  .wire-row .wk{
+    font-family:'Geist Mono', monospace;
+    font-size:9px; letter-spacing:0.14em; text-transform:uppercase;
+    color:var(--text-faint);
+  }
+  .wire-row .wv{
+    font-family:'Geist Mono', monospace;
+    font-size:12px; letter-spacing:0.12em;
+    color:var(--text-dim);
+    font-variant-numeric:tabular-nums;
+  }
+  /* set bits are the rule; unset bits are context, not noise */
+  .wire-row .wv i{ font-style:normal; color:var(--amber); font-weight:600; }
+  .wire-row .wv u{ text-decoration:none; color:var(--text-faint); opacity:0.55; }
+  .wire-packet{
+    margin-top:12px; padding:10px 12px;
+    background:var(--recess);
+    border:1px solid var(--line);
+    border-radius:var(--r-ctl);
+    font-family:'Geist Mono', monospace;
+    font-size:13px; letter-spacing:0.16em; font-weight:600;
+    color:var(--amber);
+  }
+  .wire-note{
+    margin:9px 0 0; font-size:11px; line-height:1.6; color:var(--text-faint);
+  }
+  .wire--wide .wire-row{ grid-template-columns:84px 1fr; }
+  .wire--wide .wire-row .wv{ letter-spacing:0.04em; color:var(--text-dim); }
+  .wire--wide .wire-row .wv b{ color:var(--text); font-weight:600; }
 
   .btn-row{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
   label.pbtn{ cursor:pointer; }
@@ -567,9 +661,29 @@
 <div class="wrap">
 
   <header class="masthead">
-    <h1>CELL<b>·</b>NET</h1>
-    <p>A massively parallel cellular automaton engine. <b>Every cell is its own circuit</b>;
-    this console is its operator panel, from software twin to live silicon.</p>
+    <div>
+      <h1>CELL<b>·</b>NET</h1>
+      <p>A massively parallel cellular automaton engine. <b>Every cell is its own circuit</b>;
+      this console is its operator panel, from software twin to live silicon.</p>
+    </div>
+    <div class="np-spec">
+      <div class="sp">
+        <div class="sk">Fabric</div>
+        <div class="sv"><b>GW2A-18</b></div>
+      </div>
+      <div class="sp">
+        <div class="sk">Per cell</div>
+        <div class="sv"><b>13.6</b> LUT4</div>
+      </div>
+      <div class="sp">
+        <div class="sk">Clock</div>
+        <div class="sv"><b>27</b> MHz</div>
+      </div>
+      <div class="sp">
+        <div class="sk">Per generation</div>
+        <div class="sv"><b>1</b> edge</div>
+      </div>
+    </div>
   </header>
 
   <div class="view active" id="view-engine">
@@ -589,20 +703,18 @@
       <div class="board-frame">
         <div class="board" id="board"></div>
       </div>
-    </div>
-
-    <div class="readouts">
-      <div class="ro"><div class="rl">Generation</div><div class="rv" id="roGen">0</div></div>
-      <div class="ro"><div class="rl">Lit Dots</div><div class="rv" id="roPop">0</div></div>
-      <div class="ro"><div class="rl">Peak Dwell</div><div class="rv" id="roAge">0</div></div>
-      <div class="ro"><div class="rl">Fabric %</div><div class="rv" id="roUtil">0</div></div>
+      <div class="readouts">
+        <div class="ro"><div class="rl">Generation</div><div class="rv" id="roGen">0</div></div>
+        <div class="ro"><div class="rl">Lit Dots</div><div class="rv" id="roPop">0</div></div>
+        <div class="ro"><div class="rl">Peak Dwell</div><div class="rv" id="roAge">0</div></div>
+        <div class="ro"><div class="rl">Fabric %</div><div class="rv" id="roUtil">0</div></div>
+      </div>
     </div>
     </div>
 
     <div class="rack-col">
     <div class="console">
       <div class="console-section">
-        <div class="sec-label">Transport</div>
         <div class="btn-row">
           <button class="pbtn" id="playBtn"><span class="led"></span>Run</button>
           <button class="pbtn" id="stepBtn">Step</button>
@@ -618,7 +730,6 @@
       </div>
 
       <div class="console-section">
-        <div class="sec-label">Pattern bank</div>
         <div class="preset-bank" id="presetBank"></div>
       </div>
 
@@ -634,6 +745,20 @@
             <input type="range" id="density" min="5" max="60" value="28">
           </div>
         </div>
+      </div>
+
+      <div class="wire">
+        <div class="sec-label">This rule, on the wire</div>
+        <div class="wire-rows">
+          <div class="wire-row"><span class="wk">Birth</span><span class="wv" id="wireBirth"></span></div>
+          <div class="wire-row"><span class="wk">Survive</span><span class="wv" id="wireSurvive"></span></div>
+        </div>
+        <div class="wire-packet" id="wirePacket"></div>
+        <p class="wire-note">
+          Bit <code>k</code> is <code>k</code> live neighbors, bit 0 on the right.
+          <code>ca_cell_rule.v</code> indexes those 18 bits; the 4 bytes are what
+          <code>rule_loader.v</code> decodes off a real cable.
+        </p>
       </div>
     </div>
     </div>
@@ -662,20 +787,18 @@
       <div class="board-frame">
         <div class="board" id="wfBoard"></div>
       </div>
-    </div>
-
-    <div class="readouts">
-      <div class="ro"><div class="rl">Generation</div><div class="rv" id="wfGen">0</div></div>
-      <div class="ro"><div class="rl">Forest %</div><div class="rv" id="wfTrees">0</div></div>
-      <div class="ro"><div class="rl">Burning</div><div class="rv" id="wfBurning">0</div></div>
-      <div class="ro"><div class="rl">Burned Total</div><div class="rv" id="wfBurned">0</div></div>
+      <div class="readouts">
+        <div class="ro"><div class="rl">Generation</div><div class="rv" id="wfGen">0</div></div>
+        <div class="ro"><div class="rl">Forest %</div><div class="rv" id="wfTrees">0</div></div>
+        <div class="ro"><div class="rl">Burning</div><div class="rv" id="wfBurning">0</div></div>
+        <div class="ro"><div class="rl">Burned Total</div><div class="rv" id="wfBurned">0</div></div>
+      </div>
     </div>
     </div>
 
     <div class="rack-col">
     <div class="console">
       <div class="console-section">
-        <div class="sec-label">Transport</div>
         <div class="btn-row">
           <button class="pbtn" id="wfPlayBtn"><span class="led"></span>Run</button>
           <button class="pbtn" id="wfStepBtn">Step</button>
@@ -710,6 +833,22 @@
           management, and it needs no global coordinator: every cell still
           reads only its eight neighbors, which is why it drops onto the same
           FPGA fabric as Life.
+        </p>
+      </div>
+
+      <div class="wire wire--wide">
+        <div class="sec-label">This rule, on the fabric</div>
+        <div class="wire-rows">
+          <div class="wire-row"><span class="wk">State</span><span class="wv"><b>2</b> bits per cell</span></div>
+          <div class="wire-row"><span class="wk">Neighbors</span><span class="wv"><b>8</b>-input OR</span></div>
+          <div class="wire-row"><span class="wk">Random</span><span class="wv">LFSR tap per cell</span></div>
+          <div class="wire-row"><span class="wk">Status</span><span class="wv">modelled here, not in RTL</span></div>
+        </div>
+        <p class="wire-note">
+          The Engine tab's rule is silicon you can flash today. This one is a
+          mapping that has been designed and not yet built: the neighbor test is
+          cheaper than Life's popcount, the state is wider, and the randomness is
+          the part that needs real work.
         </p>
       </div>
     </div>
@@ -807,6 +946,32 @@
           drops your pattern into the fabric while the stream keeps
           running. What comes back on this board a moment later is that
           pattern evolving in real silicon.
+        </p>
+      </div>
+
+      <div class="console-section">
+        <div class="sec-label">Set the rule, 0x33 command</div>
+        <div class="btn-row">
+          <select id="hwRule" class="field"></select>
+          <button class="pbtn" id="sendRuleBtn">Send Rule</button>
+          <span id="ruleStatus" class="status-inline">Connect first</span>
+        </div>
+        <p class="note">
+          The rule is data on the fabric, not gates. A bitstream built with
+          <code>RULE_CFG=1</code> holds birth and survive as two 9-bit masks
+          that <code>rule_loader.v</code> latches off this wire, so every
+          ruleset in the Engine tab runs on one bitstream. The chip comes up
+          on Conway, so a board nobody sends a rule to behaves exactly like
+          the fixed-rule build.
+        </p>
+        <div class="sec-label" style="margin-top:14px">Packet inspector</div>
+        <pre id="packetInspector" class="note" style="white-space:pre-wrap">nothing sent yet
+Send Seed or Send Rule to see the bytes</pre>
+        <p class="note">
+          The exact bytes the buttons above put on the wire. Same encoding
+          <code>hardware/host/protocol.py</code> produces and
+          <code>test_rule_loader.py</code> asserts against, so what you read
+          here is what the testbench checked.
         </p>
       </div>
     </div>
@@ -1076,9 +1241,33 @@ Object.entries(RULES).forEach(([k,r])=>{
     [...ruleBank.children].forEach(c=>c.classList.remove('sel'));
     b.classList.add('sel');
     document.getElementById('blindRule').textContent = `${r.name} · ${r.rule}`;
+    renderRuleWire(k);
   };
   ruleBank.appendChild(b);
 });
+
+// Show the selected rule the way the hardware sees it: two 9-bit masks and
+// the 4-byte packet. Bit 0 sits on the right, matching how the masks are
+// written in ca_cell_rule.v and golden_rule.py.
+function maskBits(mask){
+  let out = '';
+  for(let k = 8; k >= 0; k--){
+    const set = (mask >> k) & 1;
+    out += set ? '<i>1</i>' : '<u>0</u>';
+  }
+  return out;
+}
+
+function renderRuleWire(key){
+  const { birth, survive } = ruleMasks(key);
+  document.getElementById('wireBirth').innerHTML = maskBits(birth);
+  document.getElementById('wireSurvive').innerHTML = maskBits(survive);
+  document.getElementById('wirePacket').textContent =
+    hexBytes(encodeRulePacket(birth, survive));
+}
+// The initial render is deferred to the block that defines CMD_RULE below:
+// encodeRulePacket hoists, but the const it reads does not, so calling it
+// here would hit the temporal dead zone.
 
 const presetBank = document.getElementById('presetBank');
 Object.entries(PATTERNS).forEach(([name,p])=>{
@@ -1267,25 +1456,114 @@ function buildSeedGrid(kind, rows, cols){
   return g;
 }
 
-document.getElementById('sendSeedBtn').onclick = async ()=>{
-  const seedStatus = document.getElementById('seedStatus');
+// ---- the wire encoders, in one place ----
+// These three functions are the browser's copy of the protocol. The same
+// encoding lives in hardware/host/protocol.py and is asserted byte by byte
+// by hardware/tests/test_rule_loader.py. Exposed on window so the headless
+// check in check_console.js can test them without a browser.
+const CMD_SEED = 0x55;
+const CMD_RULE = 0x33;
+
+function encodeSeedPacket(cells, rows, cols){
+  // byte 0 of the payload holds grid bits [7:0], matching seed_loader.v
+  // and grid_streamer.v. One byte-order convention, both directions.
+  const numBytes = (rows * cols) / 8;
+  const packet = new Uint8Array(1 + numBytes);
+  packet[0] = CMD_SEED;
+  for(let i = 0; i < rows * cols; i++){
+    if(cells[i]) packet[1 + (i >> 3)] |= (1 << (i & 7));
+  }
+  return packet;
+}
+
+function ruleMasks(key){
+  // RULES[key].birth / .survive are lists of neighbor counts; the wire
+  // carries them as 9-bit masks, bit k meaning "k live neighbors".
+  const r = RULES[key];
+  let birth = 0, survive = 0;
+  for(const k of r.birth)   birth   |= (1 << k);
+  for(const k of r.survive) survive |= (1 << k);
+  return { birth, survive };
+}
+
+function encodeRulePacket(birth, survive){
+  // 0x33, then birth[7:0], survive[7:0], {6'b0, survive[8], birth[8]}.
+  return new Uint8Array([
+    CMD_RULE,
+    birth & 0xFF,
+    survive & 0xFF,
+    ((birth >> 8) & 1) | (((survive >> 8) & 1) << 1),
+  ]);
+}
+
+function hexBytes(packet){
+  return Array.from(packet).map(b => b.toString(16).toUpperCase().padStart(2,'0')).join(' ');
+}
+
+function showPacket(label, packet){
+  const el = document.getElementById('packetInspector');
+  if(el) el.textContent = label + '\n' + hexBytes(packet) + '\n' + packet.length + ' bytes';
+}
+
+window.cellnetProtocol = { encodeSeedPacket, ruleMasks, encodeRulePacket, hexBytes,
+                           CMD_SEED, CMD_RULE };
+
+// populate the rule select from the same RULES object the Engine tab uses
+(function(){
+  const sel = document.getElementById('hwRule');
+  if(!sel) return;
+  Object.entries(RULES).forEach(([k, r])=>{
+    const opt = document.createElement('option');
+    opt.value = k;
+    opt.textContent = r.name + ' \u00b7 ' + r.rule;
+    sel.appendChild(opt);
+  });
+  // safe here: CMD_RULE and the encoders above are initialised by now
+  renderRuleWire('conway');
+})();
+
+document.getElementById('sendRuleBtn').onclick = async ()=>{
+  const ruleStatus = document.getElementById('ruleStatus');
+  const key = document.getElementById('hwRule').value;
+  const { birth, survive } = ruleMasks(key);
+  const packet = encodeRulePacket(birth, survive);
+  showPacket('SET RULE  ' + RULES[key].name + '  ' + RULES[key].rule, packet);
   if(!livePort || !livePort.writable){
-    seedStatus.textContent = 'Connect first';
+    ruleStatus.textContent = 'Connect first';
     return;
   }
+  try{
+    const writer = livePort.writable.getWriter();
+    await writer.write(packet);
+    writer.releaseLock();
+    ruleStatus.textContent = 'Sent ' + packet.length + ' bytes';
+  } catch(err){
+    ruleStatus.textContent = 'Send failed: ' + err.message;
+  }
+};
+
+document.getElementById('sendSeedBtn').onclick = async ()=>{
+  const seedStatus = document.getElementById('seedStatus');
   const rows = parseInt(document.getElementById('hwRows').value, 10);
   const cols = parseInt(document.getElementById('hwCols').value, 10);
   if((rows * cols) % 8 !== 0){
     seedStatus.textContent = 'rows*cols must be a multiple of 8';
     return;
   }
-  const g = buildSeedGrid(document.getElementById('seedPattern').value, rows, cols);
-  const numBytes = (rows * cols) / 8;
-  const packet = new Uint8Array(1 + numBytes);
-  packet[0] = 0x55;
-  for(let i = 0; i < rows * cols; i++){
-    if(g[i]) packet[1 + (i >> 3)] |= (1 << (i & 7));
+  if(!livePort || !livePort.writable){
+    seedStatus.textContent = 'Connect first';
+    // still show what would have gone out, so the encoding is inspectable
+    // without a board attached
+    showPacket('SEED  ' + document.getElementById('seedPattern').value +
+               '  ' + rows + 'x' + cols,
+               encodeSeedPacket(buildSeedGrid(
+                 document.getElementById('seedPattern').value, rows, cols), rows, cols));
+    return;
   }
+  const g = buildSeedGrid(document.getElementById('seedPattern').value, rows, cols);
+  const packet = encodeSeedPacket(g, rows, cols);
+  showPacket('SEED  ' + document.getElementById('seedPattern').value +
+             '  ' + rows + 'x' + cols, packet);
   try{
     const writer = livePort.writable.getWriter();
     await writer.write(packet);

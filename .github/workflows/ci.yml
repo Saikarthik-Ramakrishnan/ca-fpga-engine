@@ -1,0 +1,121 @@
+name: verify
+
+# Every push and every pull request re-runs the whole verification story:
+# the cocotb suites against Icarus, the C++ engines against golden_rule.py
+# (optimized and under ThreadSanitizer), the exhaustive schedule proof, and
+# the software ladder's correctness check. Nothing here needs the FPGA.
+#
+# What this catches that a local run does not: a testbench that only passes
+# because of a stale sim_build_* directory, a Python version assumption, or
+# an RTL file that was edited but never added to a Makefile's sources.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  rtl:
+    name: cocotb suites (Icarus Verilog)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Icarus Verilog
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y iverilog
+          iverilog -V | head -1
+
+      - name: Install cocotb
+        run: |
+          python -m pip install --upgrade pip
+          pip install "cocotb>=2.0"
+          cocotb-config --version
+
+      - name: Run every simulation suite
+        working-directory: hardware/tests
+        # --clean because a fresh runner has no sim_build_*, and because
+        # this is the one place where being slower than necessary is free.
+        run: ./run_all.sh --clean
+
+  software:
+    name: golden model and rule bank
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install numeric tiers
+        run: |
+          python -m pip install --upgrade pip
+          pip install numpy numba
+
+      - name: Verify every tier against golden_rule.py
+        working-directory: software_prototype/parallelism_ladder
+        run: python3 verify_correctness.py
+
+      - name: Verify the wire protocol encoders
+        working-directory: hardware/host
+        run: python3 protocol.py
+
+  cpp:
+    name: C++ engines, ThreadSanitizer, schedule proof
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: software_prototype/cpp
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Toolchain
+        run: |
+          g++ --version | head -1
+          # TSan on recent Ubuntu kernels fails to map its shadow memory
+          # with 32 bits of mmap randomization; 28 is the documented fix.
+          sudo sysctl vm.mmap_rnd_bits=28
+
+      - name: Golden vectors and every correctness layer (-O3)
+        run: make test CXX=g++
+
+      - name: Same suite under ThreadSanitizer (mutex and atomic families)
+        run: make tsan CXX=g++
+
+      - name: Negative controls under ThreadSanitizer (verdicts gated)
+        run: make tsan-matrix CXX=g++
+
+      - name: std::barrier family under ThreadSanitizer (informational)
+        # libstdc++ implements std::barrier in headers TSan instruments, so
+        # this is expected clean here, unlike macOS libc++. Not gating.
+        run: make tsan-stdbarrier CXX=g++
+
+      - name: Exhaustive schedule exploration
+        run: make prove
+
+  console:
+    name: console (headless jsdom)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install jsdom
+        run: npm install jsdom@24
+
+      - name: Check the console loads and behaves
+        run: node software_prototype/check_console.js

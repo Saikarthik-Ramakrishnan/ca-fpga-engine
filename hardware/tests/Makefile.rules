@@ -1,8 +1,6 @@
 SIM ?= icarus
 TOPLEVEL_LANG ?= verilog
 
-VERILOG_SOURCES += $(PWD)/../rtl/ca_cell.v
-VERILOG_SOURCES += $(PWD)/../rtl/ca_grid.v
 VERILOG_SOURCES += $(PWD)/../rtl/ca_cell_rule.v
 VERILOG_SOURCES += $(PWD)/../rtl/ca_grid_rule.v
 VERILOG_SOURCES += $(PWD)/../rtl/uart_tx.v
@@ -12,22 +10,18 @@ VERILOG_SOURCES += $(PWD)/../rtl/rule_loader.v
 VERILOG_SOURCES += $(PWD)/../rtl/grid_streamer.v
 VERILOG_SOURCES += $(PWD)/../rtl/cellnet_top.v
 TOPLEVEL = cellnet_top
-MODULE = test_cellnet_loopback
+MODULE = test_cellnet_rules
 
-# sim-scale parameters: 8x8 grid, 4 clocks per UART bit, one generation
-# every 200 clocks, seed timeout shrunk to stay proportionate.
+# sim-scale parameters: identical to Makefile.loopback so the wire helpers
+# imported from test_cellnet_loopback.py stay valid. RULE_CFG=1 is the
+# default; named here because it is the whole point of this suite.
 COMPILE_ARGS += -Pcellnet_top.ROWS=8
 COMPILE_ARGS += -Pcellnet_top.COLS=8
 COMPILE_ARGS += -Pcellnet_top.CLKS_PER_BIT=4
 COMPILE_ARGS += -Pcellnet_top.GEN_DIV=170
 COMPILE_ARGS += -Pcellnet_top.TIMEOUT_CLKS=2000
+COMPILE_ARGS += -Pcellnet_top.RULE_CFG=1
 
-# RULE_CFG is left at its default of 1, so this suite exercises the
-# configurable fabric running its reset-default Conway masks. That is the
-# compatibility claim for the default build: a chip nobody sends a rule to
-# must behave exactly like the Phase 4.5 chip did. Makefile.loopback_fixed
-# runs the same test against RULE_CFG=0.
-
-SIM_BUILD = sim_build_loopback
+SIM_BUILD = sim_build_rules
 
 include $(shell cocotb-config --makefiles)/Makefile.sim
