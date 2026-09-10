@@ -26,32 +26,39 @@ make
 ```
 hardware/
 ├── rtl/
-│   ├── ca_cell.v          # one cell
-│   ├── ca_grid.v          # N cells, toroidal grid
-│   ├── uart_tx.v          # byte out
-│   ├── uart_rx.v          # byte in
-│   ├── seed_loader.v      # UART bytes to grid seed
-│   ├── grid_streamer.v    # grid snapshots to uart_tx
-│   └── cellnet_top.v      # full chip, flashable
+│   ├── ca_cell.v            # one cell, fixed Conway
+│   ├── ca_cell_rule.v       # one cell, rule as two 9-bit masks
+│   ├── ca_grid.v            # N cells, toroidal grid
+│   ├── ca_grid_rule.v       # same fabric, rule broadcast in
+│   ├── uart_tx.v            # byte out
+│   ├── uart_rx.v            # byte in
+│   ├── seed_loader.v        # 0x55, UART bytes to grid seed
+│   ├── rule_loader.v        # 0x33, UART bytes to rule masks
+│   ├── grid_streamer.v      # 0xAA, grid snapshots to uart_tx
+│   └── cellnet_top.v        # full chip, flashable, either fabric
 ├── host/
-│   └── send_seed.py       # PC seed sender
-├── bitstreams/            # prebuilt .fs (gzipped)
-├── synth/                 # resource analysis, constraints, bitstream build
+│   ├── protocol.py          # the wire encoding, self-testing
+│   └── send_seed.py         # PC seed and rule sender
+├── bitstreams/              # prebuilt .fs (gzipped)
+├── synth/                   # resource analysis, constraints, bitstream build
 └── tests/
-    ├── Makefile             # ca_cell
-    ├── Makefile.grid        # ca_grid
-    ├── Makefile.uart        # uart_tx
-    ├── Makefile.rx          # uart_rx
-    ├── Makefile.loader      # seed_loader
-    ├── Makefile.loopback    # full chip, seed in + frames out
-    ├── Makefile.postsynth   # gate-level netlist
-    ├── test_ca_cell.py
-    ├── test_ca_grid.py
-    ├── test_uart_tx.py
-    ├── test_uart_rx.py
-    ├── test_seed_loader.py
-    ├── test_cellnet_loopback.py
-    └── demos/               # capture + render a live run
+    ├── run_all.sh             # every suite, one command
+    ├── Makefile               # ca_cell
+    ├── Makefile.cellrule      # ca_cell_rule
+    ├── Makefile.grid          # ca_grid
+    ├── Makefile.gridrule      # ca_grid_rule
+    ├── Makefile.uart          # uart_tx
+    ├── Makefile.rx            # uart_rx
+    ├── Makefile.loader        # seed_loader
+    ├── Makefile.ruleloader    # rule_loader vs seed_loader, shared byte stream
+    ├── Makefile.loopback      # full chip, configurable fabric
+    ├── Makefile.loopback_fixed# full chip, fixed-Conway fabric
+    ├── Makefile.rules         # rule over the wire, end to end
+    ├── Makefile.postsynth     # gate-level netlist
+    ├── Makefile.postsynth_rule# gate-level netlist, configurable fabric
+    ├── tb_command_stack.v     # sim harness for the two loaders
+    ├── test_*.py
+    └── demos/                 # capture + render a live run
 ```
 
 ## Verification
@@ -206,3 +213,173 @@ Results, nextpnr post-route static timing analysis:
   gzip ratio 45:1.
 - Bring-up procedure: [`FLASHING.md`](FLASHING.md).
 - Remaining Phase 5 dependency: the physical board.
+
+# Phase 5b: the rule as data
+
+The rule was two comparators welded into `ca_cell.v`. It is now 18 bits in a
+register, loadable over the same UART the seeds arrive on, so all five
+rulesets the console ships run on one bitstream.
+
+- `ca_cell_rule.v`: the rule as two 9-bit masks. `birth[k]` means a dead cell
+  with k live neighbors becomes alive; `survive[k]` means a live cell with k
+  live neighbors stays alive. Conway is `birth = 9'b000001000`,
+  `survive = 9'b000001100`.
+- `ca_grid_rule.v`: the Phase 3 fabric with those masks broadcast to every
+  cell.
+- `rule_loader.v`: command byte `0x33` plus 3 payload bytes.
+- `cellnet_top.v` parameter `RULE_CFG` picks the fabric. 1 is the default and
+  builds the configurable one; 0 builds the original fixed-Conway chip.
+
+Why this does not break the locality thesis:
+
+- `birth` and `survive` are broadcast constants, in the same sense `clk`,
+  `rst_n` and `load` already are. They carry no information about any other
+  cell.
+- No shared accumulator, no global reduction, no sequential scan. A cell
+  still reads its own state and eight neighbor wires, and the whole grid
+  still resolves on one clock edge.
+- `ca_cell.v` is untouched. It passed exhaustive 512-input verification and
+  remains the smallest cell to build when only Life is needed.
+
+## Sharing one byte stream between two loaders
+
+`seed_loader` and `rule_loader` both watch the same `rx_dv`/`rx_byte` pair,
+so each has to stay out of the other's payload. Two symmetric guards:
+
+1. `rule_loader` recognises `0x33` only while `seed_loader` reports it is not
+   mid-transfer. A `0x33` inside a grid seed is data.
+2. While `rule_loader` consumes its three payload bytes it raises
+   `consuming`, and `cellnet_top` gates `rx_dv` away from `seed_loader`. A
+   `0x55` inside a rule payload never reaches the seed loader.
+
+That keeps `seed_loader.v` byte-for-byte unchanged and still covered by its
+own testbench, rather than growing a second command into a verified module.
+
+## Verification
+
+- `test_ca_cell_rule.py`: 512 inputs x 5 rulesets = 2,560 cases, plus 24
+  random rule masks over the full 18-bit space x 512 inputs = 12,288 more.
+  15,360 cases, all matched `golden_rule.update_masked()`. Corners 0 and
+  0x1FF forced in. 4/4.
+- `test_ca_grid_rule.py`: 5 rulesets x 4 seed densities x 15 generations =
+  300 full-grid comparisons, plus a mid-run mask swap asserting the grid does
+  not move on the swap and follows the new rule from the next generation.
+  3/3.
+- `test_rule_loader.py`: both guards above, checked against the real
+  `seed_loader` instance rather than a model of it, plus byte order, reset
+  default, noise rejection and timeout recovery. 6/6.
+- `test_cellnet_rules.py`: the chip through real pins only. Rule over the
+  wire then a seed; rule changed mid-run with no reseed; rule survived a
+  reseed. 3/3.
+- `test_cellnet_loopback.py` now runs against both fabrics
+  (`Makefile.loopback` and `Makefile.loopback_fixed`) unchanged, which is
+  what makes "a chip nobody sends a rule to behaves like the old one" a
+  checked claim.
+
+```bash
+cd hardware/tests
+./run_all.sh          # all 14 suites, 32 tests
+```
+
+## Cost
+
+Not measured yet. The configurable cell replaces two comparators with a
+2-to-1 mux over 9 bits feeding a 9-to-1 mux; the popcount adder tree that
+dominates the cell is identical in both. That predicts a small per-cell
+delta, and prediction is not measurement:
+
+```bash
+cd hardware/synth && python3 measure_rule_cost.py    # needs yosys
+```
+
+No resource or Fmax figure for `RULE_CFG=1` appears anywhere in this repo
+until that script has been run on a machine with the toolchain.
+
+## Protocol
+
+Full wire spec, both directions, with packet vectors:
+[`docs/PROTOCOL.md`](../docs/PROTOCOL.md).
+
+The encoding is pinned by three independent implementations that assert the
+same vectors: the cocotb testbenches, `host/protocol.py` (`python3
+protocol.py` self-tests it) and `software_prototype/check_console.js`.
+
+# Continuous integration
+
+`.github/workflows/ci.yml` runs on every push and pull request:
+
+- all 14 cocotb suites against Icarus Verilog on a clean runner, including
+  the two cycle-accurate timing measurements,
+- the software ladder's correctness check against `golden_rule.py`,
+- the protocol encoders' self-test,
+- a headless jsdom check of the console,
+- the C++ engines against `golden_rule.py`, optimized and under
+  ThreadSanitizer, plus the exhaustive schedule proof
+  ([`docs/CONCURRENCY.md`](../docs/CONCURRENCY.md)).
+
+None of it needs an FPGA. What it catches that a local run does not: a
+testbench passing only because of a stale `sim_build_*` directory, a Python
+version assumption, or an RTL file edited but never added to a Makefile's
+sources.
+
+# Phase 5b: the fabric's timing, measured
+
+The laptop-vs-FPGA comparison needs the FPGA's latency as a number that was
+measured, not asserted. Two cycle-accurate testbenches supply it, both
+against the real `cellnet_top`. Board timing (Phase 5c) is still to come;
+everything below is RTL simulation, reported in clocks and converted at the
+27 MHz dock oscillator.
+
+## Generation latency: `test_fabric_latency.py`
+
+- `GEN_DIV=1`, so the pacer never holds the grid and the rule runs every clock.
+- A soup is seeded over `rx_serial` with `hardware/host/protocol.py`'s encoder
+  and the proven bit codec.
+- From the clock the seed lands, the design advances one clock at a time and
+  the test counts clocks until `grid_state` equals `golden_rule.py`'s next
+  generation, for 64 generations in a row.
+- White-box by necessity: frames on `tx_serial` skip generations by design,
+  so per-clock state exists only inside. The loopback tests cover pins-only.
+
+| build | generations measured | clocks per generation | time at 27 MHz |
+|---|---|---|---|
+| 8x8 | 64 | 1 every time | 37.04 ns |
+| 16x16 | 64 | 1 every time | 37.04 ns |
+| 24x24 | 64 | 1 every time | 37.04 ns |
+| 32x32 | 64 | 1 every time | 37.04 ns |
+
+- One generation per clock at every build size, zero jitter across the
+  window. This is the "one clock edge" claim, now a measurement.
+
+## Link latency: `test_link_latency.py`
+
+- The real 16x16 build: `CLKS_PER_BIT=234` (115200 baud from 27 MHz),
+  deployed `GEN_DIV`, pins only.
+
+| quantity | clocks | time at 27 MHz |
+|---|---|---|
+| seed transfer in (33 bytes) | 77,220 | 2.860 ms |
+| frame period out | 77,320 | 2.864 ms (349 frames/s) |
+| seed to first frame carrying it, measured | 77,299 | 2.863 ms |
+
+- The frame period was identical on every frame observed.
+- Seed-to-frame depends on where in a frame the seed lands: between one and
+  two frame periods, less about one bit time. The first version of this test
+  asserted exactly one to two periods and failed at period minus 21 clocks.
+  The measurement was right and the bound was wrong: `uart_rx` samples
+  mid-bit, so the chip has the last seed byte half a bit before its stop bit
+  ends, and the test's frame timestamp is half a bit before the
+  transmitter's frame boundary. The bound now includes that offset and the
+  test says why.
+- The fabric computes a generation in 37 ns; the link needs 2.86 ms to report
+  one. End-to-end latency is set by the UART, by a factor of 77,320.
+
+```bash
+cd hardware/tests
+make -f Makefile.fabric_latency ROWS=16 COLS=16   # and 8, 24, 32
+make -f Makefile.link_latency
+```
+
+Both run in `run_all.sh` and CI. The comparison against the laptop is in
+[`software_prototype/cpp/results/laptop_vs_fpga.md`](../software_prototype/cpp/results/laptop_vs_fpga.md).
+
