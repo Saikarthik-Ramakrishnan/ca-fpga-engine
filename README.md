@@ -1,10 +1,10 @@
-# CELL-NET: A Massively Parallel Cellular Automaton Engine
+ Massively Parallel Cellular Automaton Engine
 
 [![verify](https://github.com/Saikarthik-Ramakrishnan/ca-fpga-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/Saikarthik-Ramakrishnan/ca-fpga-engine/actions/workflows/ci.yml)
 
 ![CELL·NET console running a Gosper glider gun](docs/media/cellnet_demo.gif)
 
-CELL-NET is a cellular automaton engine built for an FPGA, in which every cell of the grid is its own small circuit and the whole grid advances by one generation on a single clock edge. A browser console drives the chip over a serial link, and the intended output is an electromechanical flip-dot display with one disc per cell. The project follows an earlier FPGA MNIST inference accelerator and asks what fine-grained parallelism is worth when every unit of work is identical and purely local.
+This is a cellular automaton engine built for an FPGA, in which every cell of the grid is its own small circuit and the whole grid advances by one generation on a single clock edge. A browser console drives the chip over a serial link, and the intended output is an electromechanical flip-dot display with one disc per cell. The project follows an earlier FPGA MNIST inference accelerator and asks what fine-grained parallelism is worth when every unit of work is identical and purely local.
 
 ## Why an FPGA
 
