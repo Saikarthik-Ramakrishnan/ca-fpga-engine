@@ -1,204 +1,54 @@
-# Massively Parallel Cellular Automaton Engine
+# CELL-NET: A Massively Parallel Cellular Automaton Engine
 
 [![verify](https://github.com/Saikarthik-Ramakrishnan/ca-fpga-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/Saikarthik-Ramakrishnan/ca-fpga-engine/actions/workflows/ci.yml)
 
-Cellular automaton engine for parallel hardware. Every cell is an independent
-logic unit; all cells update on the same clock edge. The target output is an
-electromechanical flip-dot display.
-
 ![CELL·NET console running a Gosper glider gun](docs/media/cellnet_demo.gif)
+
+CELL-NET is a cellular automaton engine built for an FPGA, in which every cell of the grid is its own small circuit and the whole grid advances by one generation on a single clock edge. A browser console drives the chip over a serial link, and the intended output is an electromechanical flip-dot display with one disc per cell. The project follows an earlier FPGA MNIST inference accelerator and asks what fine-grained parallelism is worth when every unit of work is identical and purely local.
 
 ## Why an FPGA
 
-- A cell's next state depends on itself and its eight neighbors only.
-- CPUs and GPUs visit cells in batches. An FPGA stamps the rule down once per
-  cell as combinational logic; every cell updates simultaneously.
-- Flip-dot displays extend the same structure into hardware: one bistable
-  coil-driven disc per cell, zero standing power after a flip.
+A cell's next state depends only on its own state and the states of its eight neighbors. A processor has to visit the cells in turn or in batches, while an FPGA can place a copy of the update rule beside every cell so that all of them compute at once. A flip-dot display carries the same structure into the physical world, because each disc is driven by its own coil and holds its position without power.
 
-## What the parallelism is worth
+## System Overview
 
-Measured against a C++20 laptop engine that packs 64 cells into each machine word, on an Apple M2 Pro. The FPGA side is cycle-accurate RTL simulation converted at the 27 MHz dock clock; the board has not been measured yet.
+The system has three parts, and all of them share a single definition of the rule.
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="software_prototype/cpp/results/laptop_vs_fpga_dark.png">
-  <img alt="Throughput against grid size, and per-generation latency at 16x16, laptop against FPGA fabric" src="software_prototype/cpp/results/laptop_vs_fpga.png">
-</picture>
+- **Hardware.** A Verilog design for the Sipeed Tang Primer 20K places one cell at every grid position, accepts seeds and rule changes over UART, and streams the live grid back to the host. The default build is 16x16, and the largest grid that fits the device is 32x32.
+- **Software.** A browser console draws patterns and displays the board, a Python reference model serves as the single source of truth, and a multithreaded C++20 engine provides the laptop baseline for performance measurements.
+- **Verification.** Every layer is checked against the reference model, from exhaustive tests of a single cell to cycle-accurate simulation of the complete chip, together with a proof that the parallel C++ engine is free of data races.
 
-| grid | best laptop | FPGA at 27 MHz | FPGA at routed Fmax |
-|---|---|---|---|
-| 8x8 | 19.3 M gen/s | 27 M (1.4x) | not routed |
-| 16x16 | 10.4 M gen/s | 27 M (2.6x) | 240 M (23x) |
-| 24x24 | 6.72 M gen/s | 27 M (4.0x) | not routed |
-| 32x32 | 5.10 M gen/s | 27 M (5.3x) | 176 M (35x) |
-| 64x64 to 2048x2048 | 2.47 M to 9.46 k gen/s | does not fit | does not fit |
+At its 27 MHz board clock the fabric is 2.6 times faster than the best laptop configuration at 16x16 and 5.3 times faster at 32x32, and it completes every generation in exactly one clock cycle. The design is verified in simulation, and measurement on the physical board is the next milestone.
 
-- The fabric runs one generation per clock at every size it holds. Measured, not assumed: 64 consecutive generations at 8x8, 16x16, 24x24 and 32x32.
-- The laptop slows as the grid grows and the fabric does not, so the gap widens with size: 1.4x to 5.3x at the dock clock, 23x to 35x at the routed ceiling.
-- Latency is where the two differ most. The fabric takes exactly one clock every generation. The laptop's best threaded run at 16x16 has a p50 of 625 ns and a p99.9 of 10.4 µs.
-- The laptop wins on capacity. Past 32x32 the design does not fit this FPGA; six laptop cores keep scaling, 3.9x one core at 2048x2048.
-- End to end, the UART sets the pace: 2.86 ms to report a frame against 37 ns to compute a generation.
-- **Correction.** An earlier version of this section compared the fabric with the Python ladder's Numba tier and reported 195x at 16x16 and 408x at 32x32. The bit-sliced C++ engine is about 75x faster per core than that tier, and against it the dock-clock factors are 2.6x and 5.3x. The earlier numbers measured how slow the Numba tier is.
-- Full tables, methodology and the mutex-versus-barrier costs: [`software_prototype/cpp/results/laptop_vs_fpga.md`](software_prototype/cpp/results/laptop_vs_fpga.md) and [`docs/CONCURRENCY.md`](docs/CONCURRENCY.md).
+## Documentation
 
-## Resource summary
+| Document | Description |
+|---|---|
+| [Hardware design](hardware/README.md) | How the cell, the grid, the serial interface and the top-level chip are built and verified. |
+| [Performance evaluation](docs/PERFORMANCE.md) | Throughput and latency of the fabric compared with a multithreaded C++ engine on a laptop. |
+| [Concurrency and correctness](docs/CONCURRENCY.md) | How the parallel C++ engine protects shared state, with a proof and the evidence behind it. |
+| [Verification strategy](docs/VERIFICATION.md) | The hardware and software test suites, what each one establishes and how to run them. |
+| [Resource utilization](docs/RESOURCES.md) | FPGA area and timing for each grid size, before and after place and route. |
+| [Runtime rule configuration](docs/RULE_CONFIGURATION.md) | How the rule is loaded over the serial link so that one bitstream runs every ruleset. |
+| [Serial protocol](docs/PROTOCOL.md) | The byte format of the seeds, rules and frames exchanged with the chip. |
+| [Board bring-up](hardware/FLASHING.md) | Building the bitstream, programming the Tang Primer 20K and seeding the board. |
+| [Synthesis](hardware/synth/README.md) | The open-source toolchain flow and how the resource figures were measured. |
+| [C++ engine](software_prototype/cpp/README.md) | Building, testing and benchmarking the parallel C++ implementation. |
+| [Software benchmark](software_prototype/parallelism_ladder/README.md) | The Python reference model and the earlier comparison of software parallelism techniques. |
+| [Status and roadmap](docs/ROADMAP.md) | The completed phases, the current state of the project and the work that remains. |
+| [Repository layout](docs/REPOSITORY_LAYOUT.md) | Where each part of the project lives in the source tree. |
 
-Pre-route LUT4-equivalent, `synth_gowin -nowidelut`, Gowin GW2A-18
-(20,736 LUT4, 15,552 FF):
+Begin with the performance evaluation for the main results, then read the hardware design for how the chip is built.
 
-| grid | cells | bare grid LUT4 | full chip LUT4 | budget used | fits |
-|---|---|---|---|---|---|
-| 8x8 | 64 | 874 | 1,951 | 9.4% | yes |
-| 16x16 | 256 | 3,476 | 5,652 | 27.3% | yes |
-| 24x24 | 576 | 7,830 | 11,675 | 56.3% | yes |
-| 32x32 | 1,024 | 13,924 | 20,189 | 97.4% | yes |
+## Quick Start
 
-Routed, nextpnr post-route static timing analysis, requirement 27 MHz:
-
-| build | Fmax | LUT4 | ALU | FF |
-|---|---|---|---|---|
-| 16x16 | 240.38 MHz | 19% | 7% | 5% |
-| 32x32 | 176.46 MHz | 72% | 27% | 20% |
-
-- 13.6 LUT4-equivalents per cell, consistent at every grid size. `-nowidelut`
-  is mandatory: the default mapping costs 66 per cell, a 4.9x difference.
-- Bare-fabric ceiling 38x38, full-chip ceiling 32x32, default build 16x16.
-- Routed numbers beat the pre-route estimate because nextpnr maps the adder
-  trees onto dedicated ALU carry cells. Both accountings are reported;
-  the routed one binds.
-- Methodology: [`hardware/synth/README.md`](hardware/synth/README.md).
-- The configurable-rule fabric has not been measured yet. It needs a yosys
-  run: `cd hardware/synth && python3 measure_rule_cost.py`.
-
-## The rule is data, not gates
-
-A bitstream built with `RULE_CFG=1` (the default) holds the rule as two
-9-bit masks in a register, settable over UART:
-
-| rule | notation | packet |
-|---|---|---|
-| Conway | B3/S23 | `33 08 0C 00` |
-| HighLife | B36/S23 | `33 48 0C 00` |
-| Day & Night | B3678/S34678 | `33 C8 D8 03` |
-| Seeds | B2/S | `33 04 00 00` |
-| Maze | B3/S12345 | `33 08 3E 00` |
-
-```bash
-python3 hardware/host/send_seed.py --port /dev/ttyUSB1 --rule highlife --pattern glider
-```
-
-- All five rulesets the console ships now run on one bitstream, with no
-  rebuild between them.
-- The masks are broadcast constants, the same way `clk` and `load` already
-  are. They move no information between cells, so the locality thesis is
-  untouched: a cell still reads its own state and eight neighbor wires and
-  nothing else.
-- The chip resets to Conway, so a board nobody sends a rule to behaves
-  exactly like the fixed-rule build. `RULE_CFG=0` builds that smaller
-  fabric, and the same loopback testbench runs against both.
-- Full wire spec: [`docs/PROTOCOL.md`](docs/PROTOCOL.md).
-
-## Verification
-
-Everything below runs without an FPGA, and all of it checks against `golden_rule.py`, the single reference.
-
-### Hardware: 32 cocotb tests across 14 suites
+Open `software_prototype/cellnet_console.html` in any browser to use the console without hardware. To run the full verification suite, which requires Icarus Verilog, cocotb and a C++20 compiler:
 
 ```bash
 cd hardware/tests && ./run_all.sh
-```
-
-| suite | what it proves |
-|---|---|
-| `ca_cell` | all 512 inputs, exhaustive |
-| `ca_cell_rule` | 15,360 cases: 512 inputs x 5 rulesets, plus 24 random rule masks x 512 |
-| `ca_grid` | 4 seeds x 15 generations vs the golden model |
-| `ca_grid_rule` | 300 full-grid comparisons across 5 rulesets, plus a live rule swap |
-| `uart_tx`, `uart_rx` | bytes decoded off the simulated wire, glitch and framing errors |
-| `seed_loader` | byte order, noise, timeout, back-to-back seeds |
-| `rule_loader` | both cross-corruption guards, against the real seed loader |
-| `loopback_cfg`, `loopback_fixed` | the chip through real pins only, both fabrics |
-| `cellnet_rules` | rule over the wire, rule change mid-run, rule survives a reseed |
-| `fabric_latency_16`, `_32` | one generation per clock, measured every clock for 64 generations |
-| `link_latency` | seed-in and frame-out timing at the real 115200 baud |
-| `postsynth`, `postsynth_rule` | the gate-level netlist, when yosys is present |
-
-### Software: the C++ engine and its concurrency proof
-
-```bash
 cd software_prototype/cpp && make check
 ```
 
-- 15,212,478 checks against `golden_rule.py` vectors, including every 4x4 torus under every row partition, exhaustively.
-- The same suite under ThreadSanitizer: 4,724,098 checks, zero race reports.
-- Every thread interleaving of small instances enumerated: the barrier protocol is correct on more than 10^20 schedules; removing the barrier or the second buffer makes 12% to 76% of schedules wrong.
-- Negative controls that remove each protection in turn, with ThreadSanitizer's verdict beside the actual answer. The tool is wrong in both directions at least once, which is why there is a proof.
-- Details, the theorem and its proof: [`docs/CONCURRENCY.md`](docs/CONCURRENCY.md).
-
-### Everywhere
-
-- CI runs all of it on every push: the cocotb suites, the C++ engines optimized and under ThreadSanitizer, the schedule proof, the software ladder's correctness check, the protocol encoders and a headless console check.
-- The wire encoding is pinned by three independent implementations: the Verilog testbenches, `hardware/host/protocol.py`, and `software_prototype/check_console.js`.
-
-## Repo structure
-
-```
-ca-fpga-engine/
-├── README.md
-├── .github/workflows/ci.yml         # runs everything on every push
-├── docs/
-│   ├── PROTOCOL.md                  # the wire protocol, both directions
-│   ├── CONCURRENCY.md               # shared state, the proof, the evidence
-│   └── media/cellnet_demo.gif
-├── software_prototype/
-│   ├── cellnet_console.html         # the console
-│   ├── check_console.js             # headless jsdom checks
-│   ├── cpp/                         # C++20 engines, proof tooling, laptop vs FPGA
-│   └── parallelism_ladder/          # five Python tiers plus the fabric tier
-├── hardware/
-│   ├── rtl/ca_cell.v                  # one cell, fixed Conway
-│   ├── rtl/ca_cell_rule.v             # one cell, rule as two 9-bit masks
-│   ├── rtl/ca_grid.v                  # N cells, toroidal grid
-│   ├── rtl/ca_grid_rule.v             # same fabric, rule broadcast in
-│   ├── rtl/uart_tx.v                  # byte out
-│   ├── rtl/uart_rx.v                  # byte in
-│   ├── rtl/seed_loader.v              # 0x55, UART bytes to grid seed
-│   ├── rtl/rule_loader.v              # 0x33, UART bytes to rule masks
-│   ├── rtl/grid_streamer.v            # 0xAA, grid snapshots to uart_tx
-│   ├── rtl/cellnet_top.v              # full chip, flashable, either fabric
-│   ├── host/protocol.py               # the wire encoding, self-testing
-│   ├── host/send_seed.py              # PC seed and rule sender
-│   ├── bitstreams/                    # prebuilt .fs (gzipped)
-│   ├── FLASHING.md                    # board bring-up
-│   ├── synth/                         # resource analysis, constraints, build
-│   └── tests/                         # cocotb testbenches, run_all.sh
-└── LICENSE
-```
-
-## Status
-
-| phase | content | status |
-|---|---|---|
-| 1 | software prototype, console, parallelism ladder | done |
-| 2 | `ca_cell.v`, exhaustive 512-input verification | done |
-| 3 | `ca_grid.v`, generate fabric, toroidal wrap | done |
-| 4 | `uart_tx.v`, `grid_streamer.v`, live capture | done |
-| 4.5 | `uart_rx.v`, `seed_loader.v`, pacer, flashable top | done |
-| 5a | open-toolchain bitstreams, timing closed at 27 MHz | done |
-| 5b | selectable rule over the wire, CI, protocol spec | done in simulation |
-| 5b | C++ engine, concurrency proof, measured laptop vs FPGA | done, fabric in simulation |
-| 5c | flash the board, close the loop against the console | needs the board |
-| 6 | flip-dot driver stage | later |
-
-Everything through 5b is verified in simulation and needs no FPGA. 5c is the
-first step that does.
-
-## Motivation
-
-- Second-year follow-up to an FPGA MNIST inference accelerator.
-- Uses the FPGA for fine-grained parallelism, matched to an output medium with
-  the same one-unit-per-cell structure.
-
 ## Author
 
-Saikarthik Ramakrishnan, ECE, Shiv Nadar University Delhi.
+Saikarthik Ramakrishnan, Electronics and Communication Engineering, Shiv Nadar University, Delhi.
