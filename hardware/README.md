@@ -2,6 +2,8 @@
 
 This document describes how the chip is built, one phase at a time, from a single cell to the complete programmable design, together with the tests that verify each stage.
 
+Related documents: [resource utilization](../docs/RESOURCES.md), [runtime rule configuration](../docs/RULE_CONFIGURATION.md), [serial protocol](../docs/PROTOCOL.md), [synthesis](synth/README.md) and [repository layout](../docs/REPOSITORY_LAYOUT.md).
+
 ## Phase 2: ca_cell.v
 
 One cell. Hardware twin of `update(alive, neighbors)` from `golden_rule.py`.
