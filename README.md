@@ -1,4 +1,4 @@
- Massively Parallel Cellular Automaton Engine
+## Massively Parallel Cellular Automaton Engine
 
 [![verify](https://github.com/Saikarthik-Ramakrishnan/ca-fpga-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/Saikarthik-Ramakrishnan/ca-fpga-engine/actions/workflows/ci.yml)
 
