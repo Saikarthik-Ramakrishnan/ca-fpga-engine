@@ -1,4 +1,4 @@
-# Flashing CELL-NET onto the Tang Primer 20K
+# Board Bring-Up: Tang Primer 20K
 
 Open toolchain throughout. Gowin EDA also works: load `rtl/*.v`,
 `synth/cellnet_primer20k.cst`, `synth/cellnet_primer20k.sdc`, top module

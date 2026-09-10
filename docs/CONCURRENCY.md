@@ -1,15 +1,15 @@
-# Concurrency: what is shared, what protects it, and why the answer is always right
+# Concurrency and Correctness
 
-The parallel engine's shared variables, the protection each one gets, a proof that every schedule produces the golden answer, and the evidence behind each step of that proof.
+This document lists the variables that the parallel C++ engine shares between threads, explains how each one is protected, proves that every schedule produces the reference result, and presents the evidence for each step of the proof.
 
-## The concern
+## Background
 
 - Two threads access the same variable, at least one of them writes, and nothing orders the two accesses: that is a data race. The result depends on the schedule, and C++ defines it as undefined behavior.
 - Every shared variable therefore needs protection. A mutex is one kind. Atomics with acquire/release ordering, barriers, and data ownership are others, and they cost very different amounts.
 - A synchronous cellular automaton admits the cheapest one: arrange the data so that, within a generation, nothing is both shared and written. The only point where threads must synchronize is the boundary between generations.
 - Everything below is checked against `golden_rule.py`, the project's single reference.
 
-## The algorithm
+## Algorithm
 
 `BarrierEngine` in [`software_prototype/cpp/include/cellnet/engines.hpp`](../software_prototype/cpp/include/cellnet/engines.hpp):
 
@@ -34,7 +34,7 @@ completion step, run once per phase by one thread while every other waits:
 - The barrier comes in two builds of the same engine: C++20 `std::barrier` (engine `barrier`) and `AtomicBarrier` (engine `atomic`), two atomics written out in the header.
 - `MutexEngine` implements the same algorithm with every shared variable behind one `std::mutex` and a condition-variable barrier, for comparison.
 
-## Every shared variable
+## Shared State Inventory
 
 | variable | read by | written by | written when | protection |
 |---|---|---|---|---|
@@ -48,7 +48,7 @@ completion step, run once per phase by one thread while every other waits:
 - Ownership is by memory location, the C++ unit of conflict. In the bit-sliced kernel a row is whole 64-bit words; two threads writing different bits of one word would race (the `std::vector<bool>` trap). Owning whole rows rules that out.
 - `partial[t]` slots are 128-byte aligned (the M2 cache line) so neighbors' writes do not invalidate each other's lines. That is a speed measure; correctness never depended on it.
 
-## The textbook case: one shared counter
+## Case Study: A Shared Counter
 
 [`src/races.cpp`](../software_prototype/cpp/src/races.cpp): 8 threads count the live cells of a 512x512 soup, 20 passes, into one total. The right answer is 1,837,520.
 
@@ -65,7 +65,7 @@ completion step, run once per phase by one thread while every other waits:
 - The second row passes ThreadSanitizer and is still wrong: each access is atomic, the read-modify-write as a whole is not. Two threads load the same value and both store value + 1.
 - The engine uses the last row's pattern: `partial[t]`, summed once per generation in the completion step.
 
-## The generation boundary
+## Generation Barrier
 
 `AtomicBarrier`, from `engines.hpp`:
 
@@ -126,7 +126,7 @@ After N phases `buf[cur]` holds G(N). The workers are joined, which synchronizes
 
 Nothing in the argument depends on T, the block sizes, the grid size, the rule, or the schedule.
 
-## What the proof assumes, and where each assumption is checked
+## Assumptions and How They Are Checked
 
 | step | assumption | how it is established |
 |---|---|---|
@@ -136,7 +136,7 @@ Nothing in the argument depends on T, the block sizes, the grid size, the rule, 
 | 4, 5 | the two barrier orderings | `std::barrier`: the standard. `AtomicBarrier`: the argument above, with every operation visible to TSan |
 | 2 | ownership is by whole memory locations | scalar: one byte per cell; bit-sliced: whole 64-bit words per row |
 
-## The same proof in silicon
+## Hardware Equivalent
 
 | software | `ca_grid.v` |
 |---|---|
@@ -152,7 +152,7 @@ Nothing in the argument depends on T, the block sizes, the grid size, the rule, 
 
 ## Evidence
 
-### 1. Against golden_rule.py
+### 1. Comparison With the Reference Model
 
 [`src/test_correctness.cpp`](../software_prototype/cpp/src/test_correctness.cpp), reading vectors `tools/gen_vectors.py` computes with `golden_rule.py`:
 
@@ -170,7 +170,7 @@ Nothing in the argument depends on T, the block sizes, the grid size, the rule, 
 - 15,212,478 checks, 0 failures, 6.3 s on the M2 Pro.
 - Layer 3 compares the whole grid and the population after every generation, so a divergence is pinned to the generation where it first appears.
 
-### 2. Every schedule, on small instances
+### 2. Exhaustive Schedule Exploration
 
 [`tools/prove_schedules.py`](../software_prototype/cpp/tools/prove_schedules.py) enumerates every interleaving of the threads, for every initial grid (or a stated sample), and checks each outcome against `golden_rule.py`. It models the engine's partition, its double buffer and `std::barrier`'s semantics, and first checks its own one-cell update against `golden_rule.py` on every grid it uses.
 
@@ -238,18 +238,18 @@ got        ###        wrong: golden generation 2 is all dead
 | barrier | double buffer + `AtomicBarrier` | clean | correct |
 | barrier_std | double buffer + `std::barrier` | race (macOS) | correct |
 
-### 4. The std::barrier report
+### 4. The std::barrier Report on macOS
 
 On macOS TSan reports races in the `std::barrier` engine: 124 of them over a full run, whose answers were all correct (4,726,438 checks, 0 failures).
 
 - Every reported pair crosses the barrier: the completion step reading `partial[]` and writing `cur` (`engines.hpp:255-257`), and kernels reading rows another thread wrote the previous generation (`kernels.hpp:200-206, 226-228`).
 - Cause: libc++ declares `__arrive_barrier_algorithm_base` `_LIBCPP_EXPORTED_FROM_ABI` and implements the arrival tree in `libc++.dylib`, which is not instrumented. TSan cannot see the ordering from each arrival to the completion step.
 - The other ordering is visible: the completion step's `release` store of the phase and the waiters' `acquire` polling load are in the header (`<barrier>` lines 139 and 145). One missing link is enough. Every reported pair crosses a phase boundary through arrival, completion and return; without the first link TSan sees the chain as broken.
-- Upstream libc++ implements that tree with `acq_rel` compare-exchange (`libcxx/src/barrier.cpp`), which provides the ordering the standard requires. Apple's dylib source is not on this machine, so that detail comes from the upstream source, not from this binary. What was checked here: the header (above), the correct answers on every run, and the probe below.
+- Upstream libc++ implements that tree with `acq_rel` compare-exchange (`libcxx/src/barrier.cpp`), which provides the ordering the standard requires. Apple's dylib source is not on this machine, so that detail comes from the upstream source. What was checked here: the header (above), the correct answers on every run, and the probe below.
 - `make tsan-probe` isolates it: a program where threads write their own slot and the completion step sums the slots. `std::barrier`: correct sum, race reported. `AtomicBarrier`: correct sum, clean.
 - The gated TSan run therefore uses the mutex and atomic families; `make tsan-stdbarrier` runs the `std::barrier` family and reports without gating. On Linux, libstdc++ implements `std::barrier` in headers TSan instruments; CI records the result there.
 
-## What tools can and cannot tell you
+## Limits of Automated Tools
 
 | case | TSan | answer | what it shows |
 |---|---|---|---|
@@ -260,7 +260,7 @@ On macOS TSan reports races in the `std::barrier` engine: 124 of them over a ful
 - A TSan verdict is evidence about the schedules that ran and the code the tool could see. It fails in both directions above.
 - The proof covers every schedule and every size by argument, and the exhaustive exploration checks the protocol against every schedule of small instances by enumeration. TSan, the stress runs and the golden vectors check that the compiled code matches the model.
 
-## What each protection costs
+## Cost of Each Protection
 
 Per-generation time on the M2 Pro, bit-sliced kernel, from [`results/laptop_bench.csv`](../software_prototype/cpp/results/laptop_bench.csv). Throughput is the median of 5 timed runs; latency timestamps every generation boundary.
 
@@ -281,8 +281,8 @@ Per-generation time on the M2 Pro, bit-sliced kernel, from [`results/laptop_benc
 
 ## Limits
 
-- The proof covers the protocol for every T, grid size and rule. The kernel's sequential correctness is exhaustive at 4x4 only, checked against golden trajectories from 1x1 to 128x128, and randomized up to 256x256. It is tested at other sizes, not proven.
-- The model checker covers 3x3 and 4x4 tori over two generations; the reduction argument extends its result to finer interleavings, not to larger grids.
+- The proof covers the protocol for every T, grid size and rule. The kernel's sequential correctness is exhaustive at 4x4 only, checked against golden trajectories from 1x1 to 128x128, and randomized up to 256x256. At other sizes it is tested without a proof.
+- The model checker covers 3x3 and 4x4 tori over two generations; the reduction argument extends its result to finer interleavings; larger grids rely on the proof.
 - TSan observes the schedules that ran.
 - `std::barrier`'s correctness is taken from the standard and, for libc++, from its upstream source; on macOS TSan cannot confirm it. `AtomicBarrier` exists so a barrier checked end to end is available.
 - All measurements are from one Apple M2 Pro. CI repeats the correctness checks with GCC on Linux once the branch is pushed.

@@ -141,7 +141,7 @@ def ratio(a: float, b: float) -> str:
 def build_tables(bench, machine, fabric, link):
     sides = sorted({r["rows"] for r in bench})
     md = []
-    md.append("# Laptop vs FPGA: throughput and latency\n")
+    md.append("# Laptop and FPGA Measurements\n")
     md.append(f"- Laptop: {machine['cpu']}, {machine['performance_cores']} performance + "
               f"{machine['efficiency_cores']} efficiency cores, {machine['compiler'].split(' (')[0]}, "
               f"`{machine['flags']}`, measured {machine['date']}.")
@@ -177,7 +177,7 @@ def build_tables(bench, machine, fabric, link):
     md.append("")
 
     # --- latency
-    md.append("## Latency per generation\n")
+    md.append("## Latency per Generation\n")
     md.append("Time from one generation being complete to the next being complete. Laptop: every "
               "generation boundary timestamped, distribution over the run. FPGA: clocks per generation "
               "counted every clock for 64 generations; the count was 1 every time, so the distribution "
@@ -239,7 +239,7 @@ def build_tables(bench, machine, fabric, link):
 
     # --- link
     ms = lambda c: 1e3 * c / link["f_clk_hz"]  # noqa: E731
-    md.append("## Getting bits on and off the FPGA (16x16, 115200 baud)\n")
+    md.append("## Serial Link Timing (16x16, 115200 baud)\n")
     md.append("Measured cycle-accurately through the real pins with the deployed parameters.\n")
     md.append("| quantity | clocks | time at 27 MHz |")
     md.append("|---|---|---|")

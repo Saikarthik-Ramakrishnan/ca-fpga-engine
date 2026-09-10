@@ -1,4 +1,4 @@
-# Laptop vs FPGA: throughput and latency
+# Laptop and FPGA Measurements
 
 - Laptop: Apple M2 Pro, 6 performance + 4 efficiency cores, Apple LLVM 21.0.0, `-std=c++20 -O3 -mcpu=native`, measured 2026-09-10.
 - FPGA: clocks per generation and link timing measured in cycle-accurate RTL simulation of `cellnet_top`, converted at the 27 MHz dock clock. Not yet measured on the board.
@@ -22,7 +22,7 @@ Generations per second. One generation of the fabric is one clock edge, measured
 | 1024x1024 | 11.5 k (serial/bitslice) | 43.5 k (barrier/bitslice, 6 threads) | does not fit | does not fit | n/a |
 | 2048x2048 | 2.43 k (serial/bitslice) | 9.46 k (barrier/bitslice, 6 threads) | does not fit | does not fit | n/a |
 
-## Latency per generation
+## Latency per Generation
 
 Time from one generation being complete to the next being complete. Laptop: every generation boundary timestamped, distribution over the run. FPGA: clocks per generation counted every clock for 64 generations; the count was 1 every time, so the distribution is a single value.
 
@@ -52,7 +52,7 @@ Laptop clock tick is 41.0 ns (Apple silicon's 24 MHz system counter). Rows whose
 
 - 32x32, laptop, 1 core (serial/bitslice): its single timestamped latency run was 2.6x slower than the median of its five throughput runs, while every other row at that size agrees within 10%. macOS places threads by quality of service with no hard affinity, and can keep one run on an efficiency core. The row is shown as measured; its throughput mean is the better estimate.
 
-## Getting bits on and off the FPGA (16x16, 115200 baud)
+## Serial Link Timing (16x16, 115200 baud)
 
 Measured cycle-accurately through the real pins with the deployed parameters.
 

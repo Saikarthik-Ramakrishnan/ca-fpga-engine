@@ -1,4 +1,4 @@
-# Wire protocol
+# Serial Protocol Specification
 
 Everything the PC and the chip say to each other, over one 115200 8N1
 serial link on the Tang Primer 20K dock's BL616 bridge.
@@ -35,7 +35,7 @@ listening mid-stream cannot mistake one for another.
   takes the snapshot on that edge.
 - A transfer that stalls mid-payload for longer than `TIMEOUT_CLKS`
   (~100 ms at 27 MHz) is abandoned. Nothing is loaded, and the next `0x55`
-  is treated as a fresh command rather than swallowed as payload.
+  is treated as a fresh command and is never swallowed as payload.
 - A payload byte equal to `0x33` or `0xAA` is data. Only the loader's state
   decides what a byte means, never the byte's value alone.
 
@@ -96,7 +96,7 @@ pair. Two symmetric guards keep each out of the other's payload:
 
 Both guards are checked directly by
 `hardware/tests/test_rule_loader.py`, against the real `seed_loader`
-instance rather than a model of it, and end to end through the chip's real
+instance itself, and end to end through the chip's real
 pins by `hardware/tests/test_cellnet_rules.py`.
 
 ## Frames, chip to PC
@@ -109,7 +109,7 @@ pins by `hardware/tests/test_cellnet_rules.py`.
   payload, then latches again immediately. The link is never idle.
 - Frames report the current state. Generations that pass while a frame is
   being sent are skipped, the way a camera does not capture every instant
-  of real motion. This is by design, not a defect.
+  of real motion. This behavior is intentional.
 - Frames are therefore **not** consecutive generations. Any test that
   asserts frame N equals generation N is wrong. The correct assertion, and
   the one the testbenches make, is that some consistent non-decreasing
