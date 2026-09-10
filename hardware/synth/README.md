@@ -1,4 +1,4 @@
-# Synthesis and resource analysis
+# Synthesis and Resource Analysis
 
 Question answered here: maximum grid size on the target, and the clock it
 runs at.
@@ -82,7 +82,7 @@ per-cell delta:
 Structurally the configurable cell replaces two comparators with a 2-to-1 mux
 over 9 bits feeding a 9-to-1 mux. The popcount adder tree that dominates the
 cell is identical in both, so the delta should be small. That is a prediction
-from the gate structure, not a measurement, and no LUT4 or Fmax figure for
+from the gate structure that still awaits measurement, and no LUT4 or Fmax figure for
 `RULE_CFG=1` belongs in this repo until the script has been run on a machine
 with yosys on PATH.
 
