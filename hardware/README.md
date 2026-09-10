@@ -1,4 +1,8 @@
-# Phase 2: ca_cell.v
+# Hardware Design and Verification
+
+This document describes how the chip is built, one phase at a time, from a single cell to the complete programmable design, together with the tests that verify each stage.
+
+## Phase 2: ca_cell.v
 
 One cell. Hardware twin of `update(alive, neighbors)` from `golden_rule.py`.
 
@@ -7,7 +11,7 @@ One cell. Hardware twin of `update(alive, neighbors)` from `golden_rule.py`.
 - `load`/`seed_bit` path: `load` high selects `seed_bit` as the next state.
   Used for pattern injection and, since Phase 4.5, generation pacing.
 
-## Verification
+### Verification
 
 - 2^9 = 512 possible inputs. All 512 checked against `golden_rule.update()`.
 - Separate test for the load path.
@@ -17,7 +21,7 @@ cd hardware/tests
 make
 ```
 
-# Phase 3: ca_grid.v
+## Phase 3: ca_grid.v
 
 - `generate` block stamps out `ROWS*COLS` copies of `ca_cell`, wired by
   position, one shared clock.
@@ -61,7 +65,7 @@ hardware/
     └── demos/                 # capture + render a live run
 ```
 
-## Verification
+### Verification
 
 - Four random seeds at different densities, 15 generations each.
 - Full grid checked against `golden_rule.step_golden()` after every
@@ -73,7 +77,7 @@ cd hardware/tests
 make -f Makefile.grid
 ```
 
-## Synthesis cost
+### Synthesis cost
 
 - Initial estimate: ~66 LUT4-equivalents per cell, grid capped near 22x22.
   The measured circuit was poorly mapped.
@@ -86,14 +90,14 @@ make -f Makefile.grid
 
 Numbers and methodology: [`hardware/synth/README.md`](synth/README.md).
 
-# Phase 4: uart_tx.v, grid_streamer.v
+## Phase 4: uart_tx.v, grid_streamer.v
 
 - `uart_tx.v`: one byte, 8N1 framing, LSB first.
 - `grid_streamer.v`: latches a grid snapshot, sends sync byte `0xAA` plus the
   packed grid, latches again, repeats. Reports the current state each time the
   line is free; intermediate generations are skipped by design.
 
-## Verification
+### Verification
 
 - `test_uart_tx.py`: 8 known bytes (`0x00`, `0xFF`, `0x01`, `0x80` included)
   decoded off the simulated wire with mid-bit sampling. All matched.
@@ -107,7 +111,7 @@ make -f Makefile.uart
 make -f Makefile.loopback
 ```
 
-## Demo capture
+### Demo capture
 
 - `demos/` decodes real frames off `tx_serial` bit by bit and renders a GIF.
 - Since Phase 4.5 the demo seeds the chip over `rx_serial` as well.
@@ -121,7 +125,7 @@ python3 render_capture.py
 Outputs `phase4_live_capture.gif` and `uart_capture.json` (loaded by the
 console's Live tab).
 
-# Phase 4.5: uart_rx.v, seed_loader.v, flashable cellnet_top.v
+## Phase 4.5: uart_rx.v, seed_loader.v, flashable cellnet_top.v
 
 - `cellnet_top.v` exposes exactly the Tang Primer 20K dock pins: 27 MHz
   clock, reset key, two UART wires, two LEDs. Zero test-only ports.
@@ -136,7 +140,7 @@ console's Live tab).
   grid; `load` dropped for one clock computes one generation. `GEN_DIV` sets
   the rate, default 10 gen/s at 27 MHz. `ca_cell` is unchanged.
 
-## Verification
+### Verification
 
 - `test_uart_rx.py`: 256 byte values back-to-back at exact bit timing,
   sub-bit glitch rejection, framing-error drop with recovery. 3/3.
@@ -162,7 +166,7 @@ make -f Makefile.loader
 make -f Makefile.loopback
 ```
 
-## Full-chip cost
+### Full-chip cost
 
 `synth/measure_top.py`, LUT4-equivalent accounting, `-nowidelut`. Per-cell
 overhead above the bare grid: one seed-snapshot register plus the pacer's
@@ -181,7 +185,7 @@ hold mux.
 - 38x38 applies to the bare fabric without the seed path.
 - Default build: 16x16.
 
-## Seeding the board
+### Seeding the board
 
 ```bash
 python3 hardware/host/send_seed.py --port /dev/ttyUSB1 --pattern glider --rows 16 --cols 16
@@ -190,7 +194,7 @@ python3 hardware/host/send_seed.py --port /dev/ttyUSB1 --pattern glider --rows 1
 Console equivalent: Live tab, Connect, Send Seed. Same `0x55` protocol
 verified by the loopback test.
 
-# Phase 5a: bitstreams on the open toolchain
+## Phase 5a: Bitstreams on the Open Toolchain
 
 Flow: Yosys `synth_gowin -nowidelut`, nextpnr-himbaechel (Apicula GW2A-18),
 `gowin_pack`. One script runs all three and fails if 27 MHz timing is missed.
@@ -214,7 +218,7 @@ Results, nextpnr post-route static timing analysis:
 - Bring-up procedure: [`FLASHING.md`](FLASHING.md).
 - Remaining Phase 5 dependency: the physical board.
 
-# Phase 5b: the rule as data
+## Phase 5b: Runtime Rule Configuration
 
 The rule was two comparators welded into `ca_cell.v`. It is now 18 bits in a
 register, loadable over the same UART the seeds arrive on, so all five
@@ -241,7 +245,7 @@ Why this does not break the locality thesis:
 - `ca_cell.v` is untouched. It passed exhaustive 512-input verification and
   remains the smallest cell to build when only Life is needed.
 
-## Sharing one byte stream between two loaders
+### Sharing one byte stream between two loaders
 
 `seed_loader` and `rule_loader` both watch the same `rx_dv`/`rx_byte` pair,
 so each has to stay out of the other's payload. Two symmetric guards:
@@ -253,9 +257,9 @@ so each has to stay out of the other's payload. Two symmetric guards:
    `0x55` inside a rule payload never reaches the seed loader.
 
 That keeps `seed_loader.v` byte-for-byte unchanged and still covered by its
-own testbench, rather than growing a second command into a verified module.
+own testbench, and keeps a second command out of a verified module.
 
-## Verification
+### Verification
 
 - `test_ca_cell_rule.py`: 512 inputs x 5 rulesets = 2,560 cases, plus 24
   random rule masks over the full 18-bit space x 512 inputs = 12,288 more.
@@ -266,7 +270,7 @@ own testbench, rather than growing a second command into a verified module.
   not move on the swap and follows the new rule from the next generation.
   3/3.
 - `test_rule_loader.py`: both guards above, checked against the real
-  `seed_loader` instance rather than a model of it, plus byte order, reset
+  `seed_loader` instance itself, plus byte order, reset
   default, noise rejection and timeout recovery. 6/6.
 - `test_cellnet_rules.py`: the chip through real pins only. Rule over the
   wire then a seed; rule changed mid-run with no reseed; rule survived a
@@ -281,7 +285,7 @@ cd hardware/tests
 ./run_all.sh          # all 14 suites, 32 tests
 ```
 
-## Cost
+### Cost
 
 Not measured yet. The configurable cell replaces two comparators with a
 2-to-1 mux over 9 bits feeding a 9-to-1 mux; the popcount adder tree that
@@ -295,7 +299,7 @@ cd hardware/synth && python3 measure_rule_cost.py    # needs yosys
 No resource or Fmax figure for `RULE_CFG=1` appears anywhere in this repo
 until that script has been run on a machine with the toolchain.
 
-## Protocol
+### Protocol
 
 Full wire spec, both directions, with packet vectors:
 [`docs/PROTOCOL.md`](../docs/PROTOCOL.md).
@@ -304,7 +308,7 @@ The encoding is pinned by three independent implementations that assert the
 same vectors: the cocotb testbenches, `host/protocol.py` (`python3
 protocol.py` self-tests it) and `software_prototype/check_console.js`.
 
-# Continuous integration
+## Continuous Integration
 
 `.github/workflows/ci.yml` runs on every push and pull request:
 
@@ -322,15 +326,15 @@ testbench passing only because of a stale `sim_build_*` directory, a Python
 version assumption, or an RTL file edited but never added to a Makefile's
 sources.
 
-# Phase 5b: the fabric's timing, measured
+## Phase 5b: Fabric Timing Measurements
 
 The laptop-vs-FPGA comparison needs the FPGA's latency as a number that was
-measured, not asserted. Two cycle-accurate testbenches supply it, both
+measured directly. Two cycle-accurate testbenches supply it, both
 against the real `cellnet_top`. Board timing (Phase 5c) is still to come;
 everything below is RTL simulation, reported in clocks and converted at the
 27 MHz dock oscillator.
 
-## Generation latency: `test_fabric_latency.py`
+### Generation latency: `test_fabric_latency.py`
 
 - `GEN_DIV=1`, so the pacer never holds the grid and the rule runs every clock.
 - A soup is seeded over `rx_serial` with `hardware/host/protocol.py`'s encoder
@@ -351,7 +355,7 @@ everything below is RTL simulation, reported in clocks and converted at the
 - One generation per clock at every build size, zero jitter across the
   window. This is the "one clock edge" claim, now a measurement.
 
-## Link latency: `test_link_latency.py`
+### Link latency: `test_link_latency.py`
 
 - The real 16x16 build: `CLKS_PER_BIT=234` (115200 baud from 27 MHz),
   deployed `GEN_DIV`, pins only.
