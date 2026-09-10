@@ -6,8 +6,11 @@ runs at.
 ```bash
 python3 measure_resources.py   # sweeps grid sizes, compares mappings
 python3 measure_top.py         # full flashable chip vs bare grid
+python3 measure_rule_cost.py   # fixed rule vs runtime-selectable rule
 python3 emit_netlist.py        # gate-level netlist for post-synth sim
+RULE=1 python3 emit_netlist.py # same, configurable fabric
 ./build_bitstream.sh           # RTL to .fs, timing-checked (run from hardware/)
+RULE_CFG=0 ./build_bitstream.sh 32 32   # the smaller fixed-Conway build
 ```
 
 Target: Gowin GW2A-18, Tang Primer 20K. 20,736 LUT4, 15,552 registers.
@@ -67,3 +70,22 @@ cd ../tests && make -f Makefile.postsynth
   projects. clk H11, rst_n T5, tx M11, rx T13, leds L16/L14.
 - `cellnet_primer20k.sdc`: 27 MHz clock constraint for the Gowin EDA flow.
 - `build_bitstream.sh`: yosys, nextpnr-himbaechel, gowin_pack. Any grid size.
+
+## Cost of a runtime-selectable rule
+
+Not measured. `measure_rule_cost.py` synthesizes four builds and reports the
+per-cell delta:
+
+- `ca_grid` against `ca_grid_rule`, the bare fabrics,
+- `cellnet_top RULE_CFG=0` against `RULE_CFG=1`, the full flashable chips.
+
+Structurally the configurable cell replaces two comparators with a 2-to-1 mux
+over 9 bits feeding a 9-to-1 mux. The popcount adder tree that dominates the
+cell is identical in both, so the delta should be small. That is a prediction
+from the gate structure, not a measurement, and no LUT4 or Fmax figure for
+`RULE_CFG=1` belongs in this repo until the script has been run on a machine
+with yosys on PATH.
+
+The routed figures elsewhere in this repo (240.38 MHz at 16x16, 176.46 MHz at
+32x32) are for the Phase 5a fixed-rule chip. Do not carry them over to the
+configurable build.
