@@ -12,33 +12,20 @@ A cell's next state depends only on its own state and the states of its eight ne
 
 ## System Overview
 
-The system has three parts, and all of them share a single definition of the rule.
-
-- **Hardware.** A Verilog design for the Sipeed Tang Primer 20K places one cell at every grid position, accepts seeds and rule changes over UART, and streams the live grid back to the host. The default build is 16x16, and the largest grid that fits the device is 32x32.
-- **Software.** A browser console draws patterns and displays the board, a Python reference model serves as the single source of truth, and a multithreaded C++20 engine provides the laptop baseline for performance measurements.
-- **Verification.** Every layer is checked against the reference model, from exhaustive tests of a single cell to cycle-accurate simulation of the complete chip, together with a proof that the parallel C++ engine is free of data races.
-
-At its 27 MHz board clock the fabric is 2.6 times faster than the best laptop configuration at 16x16 and 5.3 times faster at 32x32, and it completes every generation in exactly one clock cycle. The design is verified in simulation, and measurement on the physical board is the next milestone.
+The chip runs on a Sipeed Tang Primer 20K board and gives every cell its own circuit, for grids of up to 32x32. A browser console sends patterns and rules to the board over USB and displays the grid that the board streams back. A Python reference model defines the correct behavior, and every part of the hardware and software is tested against it.
 
 ## Documentation
 
+Start here, and follow any link for more detail.
+
 | Document | Description |
 |---|---|
-| [Hardware design](hardware/README.md) | How the cell, the grid, the serial interface and the top-level chip are built and verified. |
-| [Performance evaluation](docs/PERFORMANCE.md) | Throughput and latency of the fabric compared with a multithreaded C++ engine on a laptop. |
-| [Concurrency and correctness](docs/CONCURRENCY.md) | How the parallel C++ engine protects shared state, with a proof and the evidence behind it. |
-| [Verification strategy](docs/VERIFICATION.md) | The hardware and software test suites, what each one establishes and how to run them. |
-| [Resource utilization](docs/RESOURCES.md) | FPGA area and timing for each grid size, before and after place and route. |
-| [Runtime rule configuration](docs/RULE_CONFIGURATION.md) | How the rule is loaded over the serial link so that one bitstream runs every ruleset. |
-| [Serial protocol](docs/PROTOCOL.md) | The byte format of the seeds, rules and frames exchanged with the chip. |
-| [Board bring-up](hardware/FLASHING.md) | Building the bitstream, programming the Tang Primer 20K and seeding the board. |
-| [Synthesis](hardware/synth/README.md) | The open-source toolchain flow and how the resource figures were measured. |
-| [C++ engine](software_prototype/cpp/README.md) | Building, testing and benchmarking the parallel C++ implementation. |
-| [Software benchmark](software_prototype/parallelism_ladder/README.md) | The Python reference model and the earlier comparison of software parallelism techniques. |
-| [Status and roadmap](docs/ROADMAP.md) | The completed phases, the current state of the project and the work that remains. |
-| [Repository layout](docs/REPOSITORY_LAYOUT.md) | Where each part of the project lives in the source tree. |
-
-Begin with the performance evaluation for the main results, then read the hardware design for how the chip is built.
+| [Hardware design](hardware/README.md) | How the chip is built and tested. |
+| [Performance](docs/PERFORMANCE.md) | Speed and latency of the FPGA compared with a laptop. |
+| [Concurrency and correctness](docs/CONCURRENCY.md) | How the parallel software stays correct, with a proof. |
+| [Verification](docs/VERIFICATION.md) | The test suites and how to run them. |
+| [Board bring-up](hardware/FLASHING.md) | Programming the board and sending patterns to it. |
+| [Status and roadmap](docs/ROADMAP.md) | What is finished and what comes next. |
 
 ## Quick Start
 
