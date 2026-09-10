@@ -40,3 +40,9 @@ ca-fpga-engine/
 | `rtl/rule_loader.v` | Assembles a rule from the serial stream. |
 | `rtl/grid_streamer.v` | Sends snapshots of the grid to the host. |
 | `rtl/cellnet_top.v` | The complete chip, in either build. |
+
+## Component Documentation
+
+- [Hardware design](../hardware/README.md) and [synthesis](../hardware/synth/README.md)
+- [C++ engine](../software_prototype/cpp/README.md)
+- [Software benchmark and reference model](../software_prototype/parallelism_ladder/README.md)
