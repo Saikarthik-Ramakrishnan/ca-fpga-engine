@@ -9,7 +9,14 @@ TOPLEVEL_LANG ?= verilog
 #
 # Generate the netlist first:
 #   cd hardware/synth && RULE=1 python3 emit_netlist.py
-VERILOG_SOURCES += /usr/share/yosys/gowin/cells_sim.v
+# Gowin's primitive models ship inside yosys, and where that is depends
+# on how yosys was installed: /usr/share/yosys under oss-cad-suite, a
+# Cellar path under Homebrew. Ask yosys instead of guessing. Override
+# GOWIN_CELLS_SIM to point somewhere else.
+YOSYS_DATDIR ?= $(shell yosys-config --datdir 2>/dev/null || echo /usr/share/yosys)
+GOWIN_CELLS_SIM ?= $(YOSYS_DATDIR)/gowin/cells_sim.v
+
+VERILOG_SOURCES += $(GOWIN_CELLS_SIM)
 VERILOG_SOURCES += $(PWD)/../synth/build/ca_grid_rule_netlist.v
 
 TOPLEVEL = ca_grid_rule

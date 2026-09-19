@@ -49,6 +49,7 @@ hardware/
 ├── synth/                   # resource analysis, constraints, bitstream build
 └── tests/
     ├── run_all.sh             # every suite, one command
+    ├── run_link_speed.sh       # baud sweep: round trip and tolerance
     ├── Makefile               # ca_cell
     ├── Makefile.cellrule      # ca_cell_rule
     ├── Makefile.grid          # ca_grid
@@ -60,6 +61,10 @@ hardware/
     ├── Makefile.loopback      # full chip, configurable fabric
     ├── Makefile.loopback_fixed# full chip, fixed-Conway fabric
     ├── Makefile.rules         # rule over the wire, end to end
+    ├── Makefile.fabric_latency # clocks per generation
+    ├── Makefile.link_latency   # frame period and seed to frame
+    ├── Makefile.link_speed     # full chip at one baud divider
+    ├── Makefile.baud_tolerance # receiver against an off-rate sender
     ├── Makefile.postsynth     # gate-level netlist
     ├── Makefile.postsynth_rule# gate-level netlist, configurable fabric
     ├── tb_command_stack.v     # sim harness for the two loaders
@@ -284,22 +289,37 @@ own testbench, and keeps a second command out of a verified module.
 
 ```bash
 cd hardware/tests
-./run_all.sh          # all 14 suites, 32 tests
+./run_all.sh          # all 16 suites, 34 tests
 ```
 
 ### Cost
 
-Not measured yet. The configurable cell replaces two comparators with a
-2-to-1 mux over 9 bits feeding a 9-to-1 mux; the popcount adder tree that
-dominates the cell is identical in both. That predicts a small per-cell
-delta, and prediction is not measurement:
+Measured, and larger than the design predicted. The prediction was a small
+per-cell delta, because the configurable cell keeps the same popcount adder
+tree and only changes how the rule is looked up. The measurement says the
+lookup is the expensive part:
+
+| | fixed | configurable |
+|---|---|---|
+| LUT4 equivalents per cell | 11.0 | 26.0 |
+| largest chip that fits before routing | 32x32 | 25x25 |
+
+- Selecting one of nine counts from a register is a 16-to-1 mux, and a tree
+  of 2-to-1 muxes built from LUT4 cells costs fifteen of them. That is the
+  entire delta, and it is larger than the fixed cell it is attached to.
+- `RULE_CFG=1` is the default, so the default bitstream is the larger one.
+  Above 25x25, build `RULE_CFG=0`.
+- Pre-route figures, from Yosys 0.69. Place and route recovers a large
+  margin on the fixed build by using dedicated ALU carry cells, so a
+  configurable 26x26 may still route. Only nextpnr settles that.
 
 ```bash
-cd hardware/synth && python3 measure_rule_cost.py    # needs yosys
+cd hardware/synth
+python3 measure_rule_cost.py --sizes 8 16 24 25 26 32 --json results/rule_cost.json
 ```
 
-No resource or Fmax figure for `RULE_CFG=1` appears anywhere in this repo
-until that script has been run on a machine with the toolchain.
+Full tables and the toolchain-version caveat are in
+[`docs/RESOURCES.md`](../docs/RESOURCES.md).
 
 ### Protocol
 
@@ -380,10 +400,49 @@ everything below is RTL simulation, reported in clocks and converted at the
 - The fabric computes a generation in 37 ns; the link needs 2.86 ms to report
   one. End-to-end latency is set by the UART, by a factor of 77,320.
 
+### Link rate: `test_link_speed.py` and `test_baud_tolerance.py`
+
+Since the link sets the end-to-end timing, the next question is how fast it
+can run. The rate is one parameter and the 27 MHz clock divides exactly into
+1, 1.5, 2.25, 2.7 and 3 million baud, so the chip need contribute no rate
+error of its own.
+
+Two sweeps, because either alone gives the wrong answer:
+
+- `test_link_speed.py` seeds the whole chip at a divider and checks the
+  pattern comes back bit for bit. Every divider passes, down to 9 Mbaud,
+  because the testbench generates bits at exactly the rate the receiver
+  expects. That is a real result and a misleading one.
+- `test_baud_tolerance.py` drives `uart_rx` from the project encoder called
+  at a rate the receiver was not built for, and finds the widest mismatch
+  that still decodes. This is what rules the fast rates out.
+
+| baud | clocks per bit | frame period | frames/s | gain | sender may be off by |
+|---|---|---|---|---|---|
+| 115,385 | 234 | 2.864 ms | 349 | deployed | 5.4% fast, 5.3% slow |
+| 1,000,000 | 27 | 0.334 ms | 2,997 | 8.6x | 3.8% fast, 3.6% slow |
+| 1,500,000 | 18 | 0.224 ms | 4,470 | 12.8x | under 5.6% fast, 5.3% slow |
+| 3,000,000 | 9 | 0.114 ms | 8,795 | 25.2x | under 11.1% each way |
+
+- A receiver that samples mid-bit and re-aligns once per byte has a ceiling
+  of 1 in 19, or 5.26%, shared between both ends. The slower rates sit at it.
+  The margin falls as the divider shrinks, because the receiver counts whole
+  clocks and a fast bit contains few of them.
+- An "under" entry is a bound. The sender's rate is an integer number of
+  clocks per bit, so below a divider of about 18 the window is narrower than
+  one step and the sweep can only say it is smaller than that.
+- A USB-serial bridge holds its rate well inside half a percent, so
+  1,000,000 baud has roughly seven times the margin it needs.
+- The default stays at 115200 until the board confirms its bridge follows.
+  Changing it is `CLKS_PER_BIT=27` in the build and `--baud 1000000` on the
+  host script. Both ends must move together, which is why the default has
+  not moved yet.
+
 ```bash
 cd hardware/tests
 make -f Makefile.fabric_latency ROWS=16 COLS=16   # and 8, 24, 32
 make -f Makefile.link_latency
+./run_link_speed.sh                               # both rate sweeps
 ```
 
 Both run in `run_all.sh` and CI. The comparison against the laptop is in

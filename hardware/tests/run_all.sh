@@ -8,6 +8,11 @@
 #   ./run_all.sh          # all simulation suites
 #   ./run_all.sh --clean  # wipe sim_build_* first (see the note below)
 #
+# Two of the suites here are one point each from a larger sweep: the
+# link runs at one faster divider and the receiver's tolerance is
+# measured at the deployed one. run_link_speed.sh sweeps both across
+# every candidate rate and is the thing to run when choosing one.
+#
 # The gate-level suite (Makefile.postsynth) needs yosys and a generated
 # netlist. It is skipped, loudly, when either is missing, so the absence of
 # a synthesis toolchain never looks like a pass.
@@ -42,6 +47,8 @@ SUITES=(
     "fabric_latency_16:Makefile.fabric_latency ROWS=16 COLS=16"
     "fabric_latency_32:Makefile.fabric_latency ROWS=32 COLS=32"
     "link_latency:Makefile.link_latency"
+    "link_speed_1m:Makefile.link_speed CPB=27"
+    "baud_tolerance:Makefile.baud_tolerance"
 )
 
 LOGDIR="$(mktemp -d)"

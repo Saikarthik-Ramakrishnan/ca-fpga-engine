@@ -13,3 +13,9 @@ software_prototype/cpp/build/
 hardware/tests/sim_build_*/
 hardware/tests/results.xml
 hardware/tests/__pycache__/
+
+# Per-divider output from run_link_speed.sh. The sweep it writes,
+# link_speed_sweep.json, carries every one of these inside it and is the
+# file the comparison reads.
+hardware/tests/results/link_speed_cpb*.json
+hardware/tests/results/baud_tolerance_cpb*.json

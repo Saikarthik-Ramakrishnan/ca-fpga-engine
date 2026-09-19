@@ -1,0 +1,21 @@
+SIM ?= icarus
+TOPLEVEL_LANG ?= verilog
+
+VERILOG_SOURCES += $(PWD)/../rtl/uart_rx.v
+TOPLEVEL = uart_rx
+MODULE = test_baud_tolerance
+
+# DUT_CPB is the divider the receiver is built for. SPAN is how far
+# either side of it the sender's rate is swept, in clocks per bit.
+DUT_CPB ?= 234
+SPAN ?= 30
+export DUT_CPB
+export SPAN
+
+COMPILE_ARGS += -Puart_rx.CLKS_PER_BIT=$(DUT_CPB)
+
+# One build directory per divider: cocotb reuses a stale binary when
+# only Makefile parameters change.
+SIM_BUILD = sim_build_baud_tol_$(DUT_CPB)
+
+include $(shell cocotb-config --makefiles)/Makefile.sim

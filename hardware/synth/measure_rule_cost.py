@@ -27,8 +27,10 @@ Needs yosys on PATH (oss-cad-suite). Run from hardware/synth/:
 """
 
 import argparse
+import json
 import os
 import shutil
+import subprocess
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -45,6 +47,14 @@ TOP_SOURCES = [
 ]
 
 
+def yosys_version() -> str:
+    """The exact synthesiser these numbers came from. Cell counts move
+    between yosys releases, so a figure without its version is not
+    comparable to anything."""
+    out = subprocess.run(["yosys", "-V"], capture_output=True, text=True)
+    return out.stdout.strip().splitlines()[0] if out.returncode == 0 else "unknown"
+
+
 def measure(top, rows, cols, sources, params=None):
     return analyze(synth(top, rows, cols, sources, nowidelut=True, params=params))
 
@@ -53,6 +63,9 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--sizes", type=int, nargs="+", default=[8, 16, 24, 32],
                     help="square grid sizes to measure")
+    ap.add_argument("--json", metavar="PATH",
+                    help="also write the raw measurements here, with the "
+                         "yosys version that produced them")
     args = ap.parse_args()
 
     if not shutil.which("yosys"):
@@ -68,6 +81,9 @@ def main():
               f"| {'rule %':>7} {'fits':>5}")
     print(header)
     print("-" * len(header))
+
+    record = {"yosys": yosys_version(), "budget_lut4": BUDGET_LUT4,
+              "budget_ff": BUDGET_FF, "nowidelut": True, "sizes": {}}
 
     for n in args.sizes:
         cells = n * n
@@ -86,6 +102,16 @@ def main():
               f"{gr['lut4_equiv']:>10,} {d_grid:>7.2f} | {tf['lut4_equiv']:>10,} "
               f"{tr['lut4_equiv']:>10,} {d_top:>7.2f} | {pct:>6.1f}% {fits:>5}")
 
+        record["sizes"][f"{n}x{n}"] = {
+            "cells": cells,
+            "grid_fixed": gf, "grid_rule": gr,
+            "top_fixed": tf, "top_rule": tr,
+            "delta_lut4_per_cell_grid": d_grid,
+            "delta_lut4_per_cell_top": d_top,
+            "top_rule_budget_pct": pct,
+            "top_rule_fits_pre_route": fits == "yes",
+        }
+
         for label, a in (("grid rule", gr), ("top rule", tr)):
             if a["unknown"]:
                 print(f"          {label}: unmapped primitives "
@@ -98,6 +124,12 @@ def main():
     print()
     print("If the configurable chip stops fitting at the size you want, build the")
     print("fixed one:  RULE_CFG=0 ./synth/build_bitstream.sh <rows> <cols>")
+
+    if args.json:
+        os.makedirs(os.path.dirname(os.path.abspath(args.json)), exist_ok=True)
+        with open(args.json, "w") as fh:
+            json.dump(record, fh, indent=2)
+        print(f"\nwrote {args.json}")
 
 
 if __name__ == "__main__":

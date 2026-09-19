@@ -127,6 +127,14 @@ pins by `hardware/tests/test_cellnet_rules.py`.
   frames look wrong.
 - A 16x16 frame is 33 bytes, about 2.9 ms on the wire, so roughly 350
   frames per second is the link ceiling at this baud.
+- The baud rate is a deployment choice rather than a property of the
+  protocol. The 27 MHz clock divides exactly into 1, 1.5, 2.25, 2.7 and 3
+  million baud, and 1,000,000 baud has been verified in simulation with a
+  measured margin of about 3.7% against a sender running off rate. Both
+  ends move together: `CLKS_PER_BIT=27` in the build, `--baud 1000000` on
+  `send_seed.py`, and the console's baud field. The rate sweep and the
+  reason the default has not moved are in
+  [Performance evaluation](PERFORMANCE.md).
 - Default `GEN_DIV` is 2,700,000, i.e. 10 generations per second at 27 MHz.
   The fabric itself can do one generation per clock; the pacer exists only
   so a human and a UART can follow along.

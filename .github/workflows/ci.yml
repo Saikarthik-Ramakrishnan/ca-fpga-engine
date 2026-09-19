@@ -38,11 +38,33 @@ jobs:
           pip install "cocotb>=2.0"
           cocotb-config --version
 
+      - name: Install Yosys
+        # Only the gate-level suites need it. They are skipped when it is
+        # missing, which reads as a pass, so CI installs it to make sure
+        # the mapped netlist is actually simulated.
+        run: |
+          sudo apt-get install -y yosys
+          yosys -V | head -1
+
+      - name: Generate the gate-level netlists
+        working-directory: hardware/synth
+        run: |
+          python3 emit_netlist.py
+          RULE=1 python3 emit_netlist.py
+
       - name: Run every simulation suite
         working-directory: hardware/tests
         # --clean because a fresh runner has no sim_build_*, and because
         # this is the one place where being slower than necessary is free.
         run: ./run_all.sh --clean
+
+      - name: Sweep the serial link rate
+        working-directory: hardware/tests
+        run: ./run_link_speed.sh
+
+      - name: Measure the configurable rule's area
+        working-directory: hardware/synth
+        run: python3 measure_rule_cost.py --sizes 8 16 --json results/rule_cost_ci.json
 
   software:
     name: golden model and rule bank

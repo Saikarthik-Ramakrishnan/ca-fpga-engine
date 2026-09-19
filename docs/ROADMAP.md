@@ -14,6 +14,7 @@ This document records the completed phases of the project and the work that rema
 | 5a | Bitstreams from the open-source toolchain, with timing met at 27 MHz | Complete |
 | 5b | Runtime rule configuration, protocol specification and continuous integration | Complete in simulation |
 | 5b | C++ engine, concurrency proof and laptop-to-FPGA measurements | Complete, with the fabric measured in simulation |
+| 5b | Configurable-rule area, serial link rate and receiver tolerance | Complete in simulation |
 | 5c | Programming the board and connecting it to the console | Awaiting hardware |
 | 6 | Driver stage for the flip-dot display | Planned |
 
@@ -24,5 +25,6 @@ Every phase up to 5b has been verified in simulation and requires no FPGA. Phase
 ## Next Steps
 
 - Program the board and confirm that the live stream matches the simulation.
-- Measure the configurable-rule build's area with the Yosys toolchain.
+- Raise the serial link to 1,000,000 baud once the board confirms that its USB bridge follows. The rate is verified in simulation and the change is one parameter at each end, described in [Performance evaluation](PERFORMANCE.md).
+- Route a configurable-rule build larger than 25x25, which pre-route synthesis says will not fit and which only place and route can settle.
 - Design the coil driver stage for the flip-dot display.

@@ -48,6 +48,9 @@ from protocol import (
     hex_bytes, payload_bytes, rule_masks, mask_notation,
 )
 
+# The bitstream's CLKS_PER_BIT and this number are one setting seen from
+# two sides: 27,000,000 / CLKS_PER_BIT. A mismatch produces bytes with no
+# sync rather than an error, so --baud must follow a rebuilt bitstream.
 BAUD = 115200
 
 
@@ -89,6 +92,9 @@ def main():
                     help="only used by --pattern soup")
     ap.add_argument("--watch", type=int, metavar="N", default=0,
                     help="after sending, decode and print N frames coming back")
+    ap.add_argument("--baud", type=int, default=BAUD,
+                    help=f"must match the bitstream: 27,000,000 divided by "
+                         f"its CLKS_PER_BIT (default {BAUD}, from 234)")
     ap.add_argument("--dry-run", action="store_true",
                     help="print the packets instead of opening a port")
     args = ap.parse_args()
@@ -138,7 +144,7 @@ def main():
     except ImportError:
         sys.exit("pyserial not installed: pip install pyserial")
 
-    with serial.Serial(args.port, BAUD, timeout=1) as port:
+    with serial.Serial(args.port, args.baud, timeout=1) as port:
         for label, packet in packets:
             port.write(packet)
             port.flush()

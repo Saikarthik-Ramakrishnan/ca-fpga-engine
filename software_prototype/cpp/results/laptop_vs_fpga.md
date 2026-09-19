@@ -66,3 +66,26 @@ Measured cycle-accurately through the real pins with the deployed parameters.
 
 The fabric computes a generation in 37 ns; the UART needs 2.86 ms to report one. End-to-end latency is set by the link, by a factor of about 77,320.
 
+## Serial Link Rate
+
+The baud rate is one parameter, CLKS_PER_BIT, and the same 27 MHz clock divides exactly into several faster rates. Each row was measured twice: a full seed-in, frame-out round trip through the real pins, and a sweep of the receiver against a sender running off rate. The second column pair is the one that matters, because the round trip passes at every rate in this table.
+
+| clocks per bit | baud | frame period | frames/s | vs 115200 | sender may be off by |
+|---|---|---|---|---|---|
+| 234 | 115,385 | 2.864 ms | 349 | 1.00x | 5.4% fast, 5.3% slow |
+| 117 | 230,769 | 1.434 ms | 697 | 2.00x | 5.4% fast, 4.9% slow |
+| 59 | 457,627 | 0.725 ms | 1,380 | 3.95x | 5.4% fast, 4.8% slow |
+| 29 | 931,034 | 0.358 ms | 2,792 | 8.00x | 3.6% fast, 3.3% slow |
+| 27 | 1,000,000 | 0.334 ms | 2,997 | 8.58x | 3.8% fast, 3.6% slow |
+| 18 | 1,500,000 | 0.224 ms | 4,470 | 12.80x | under 5.6% fast, 5.3% slow |
+| 12 | 2,250,000 | 0.150 ms | 6,650 | 19.04x | under 8.3% fast, under 8.3% slow |
+| 10 | 2,700,000 | 0.126 ms | 7,941 | 22.74x | under 10.0% fast, under 10.0% slow |
+| 9 | 3,000,000 | 0.114 ms | 8,795 | 25.19x | under 11.1% fast, under 11.1% slow |
+| 6 | 4,500,000 | 0.077 ms | 12,981 | 37.17x | under 16.7% fast, under 16.7% slow |
+| 4 | 6,750,000 | 0.053 ms | 19,014 | 54.45x | under 25.0% fast, under 25.0% slow |
+| 3 | 9,000,000 | 0.040 ms | 24,771 | 70.94x | under 33.3% fast, under 33.3% slow |
+
+A receiver that samples mid-bit and re-aligns once per byte has a ceiling of 1 in 19, or 5.26%, shared between the two ends of the wire. The three slowest rates sit at that ceiling. The margin then falls as the divider shrinks, because the receiver waits a whole number of clocks and there are fewer of them in a bit. Where the entry reads "under", the window is narrower than the one-clock step this sweep can apply, so the figure is a bound rather than a measurement.
+
+A USB-serial bridge holds its rate to well inside half a percent, so 1,000,000 baud has around seven times the margin it needs and is 8.58 times faster than the rate deployed today. It is also an exact divider of 27 MHz, so the chip contributes no error of its own. The default stays at 115200 until the board confirms the bridge follows.
+

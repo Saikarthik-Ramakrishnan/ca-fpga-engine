@@ -97,6 +97,16 @@ def load_link():
         return json.load(fh)
 
 
+def load_link_sweep():
+    """The divider sweep is optional: the comparison stands without it,
+    and the section is simply left out when it has not been run."""
+    path = os.path.join(HW_RESULTS, "link_speed_sweep.json")
+    if not os.path.exists(path):
+        return None
+    with open(path) as fh:
+        return json.load(fh)
+
+
 # --------------------------------------------------------------- selection
 
 def at(bench, side):
@@ -257,6 +267,53 @@ def build_tables(bench, machine, fabric, link):
     md.append(f"The fabric computes a generation in {ns(1e9 / F_DOCK)}; the UART needs "
               f"{ms(link['frame_period_clocks']):.2f} ms to report one. End-to-end latency is set by the "
               f"link, by a factor of about {link['frame_period_clocks']:,}.\n")
+
+    # --- link rate
+    sweep = load_link_sweep()
+    if sweep:
+        md.append("## Serial Link Rate\n")
+        md.append("The baud rate is one parameter, CLKS_PER_BIT, and the same 27 MHz clock "
+                  "divides exactly into several faster rates. Each row was measured twice: a "
+                  "full seed-in, frame-out round trip through the real pins, and a sweep of the "
+                  "receiver against a sender running off rate. The second column pair is the one "
+                  "that matters, because the round trip passes at every rate in this table.\n")
+        md.append("| clocks per bit | baud | frame period | frames/s | vs 115200 | sender may be off by |")
+        md.append("|---|---|---|---|---|---|")
+        base = next((r["speed"]["frame_period_clocks"] for r in sweep["rows"]
+                     if r["clks_per_bit"] == 234 and r["speed"]), None)
+        f_clk = sweep["f_clk_hz"]
+        for r in sweep["rows"]:
+            sp, tol = r["speed"], r["tolerance"]
+            if not sp:
+                continue
+            period = sp["frame_period_clocks"]
+            speedup = f"{base / period:.2f}x" if base else "n/a"
+            if not tol:
+                margin = "not measured"
+            else:
+                res = tol["resolution_pct"]
+                fast = (f"under {res:.1f}%" if tol["fast_bounded_only"]
+                        else f"{tol['tolerance_pct_sender_fast']:.1f}%")
+                slow = (f"under {res:.1f}%" if tol["slow_bounded_only"]
+                        else f"{abs(tol['tolerance_pct_sender_slow']):.1f}%")
+                margin = f"{fast} fast, {slow} slow"
+            md.append(f"| {r['clks_per_bit']} | {r['baud']:,.0f} | "
+                      f"{1e3 * period / f_clk:.3f} ms | {sp['frames_per_second']:,.0f} | "
+                      f"{speedup} | {margin} |")
+        md.append("")
+        md.append("A receiver that samples mid-bit and re-aligns once per byte has a ceiling of "
+                  "1 in 19, or 5.26%, shared between the two ends of the wire. The three slowest "
+                  "rates sit at that ceiling. The margin then falls as the divider shrinks, "
+                  "because the receiver waits a whole number of clocks and there are fewer of "
+                  "them in a bit. Where the entry reads \"under\", the window is narrower than "
+                  "the one-clock step this sweep can apply, so the figure is a bound rather than "
+                  "a measurement.\n")
+        md.append("A USB-serial bridge holds its rate to well inside half a percent, so 1,000,000 "
+                  "baud has around seven times the margin it needs and is 8.58 times faster than "
+                  "the rate deployed today. It is also an exact divider of 27 MHz, so the chip "
+                  "contributes no error of its own. The default stays at 115200 until the board "
+                  "confirms the bridge follows.\n")
+
     return "\n".join(md), thr, lat_rows
 
 
