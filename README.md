@@ -1,6 +1,6 @@
 ## Massively Parallel Cellular Automaton Engine
 
-[![verify](https://github.com/Saikarthik-Ramakrishnan/ca-fpga-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/Saikarthik-Ramakrishnan/ca-fpga-engine/actions/workflows/ci.yml)
+[![verify](https://github.com/Saikarthik-Ramakrishnan/ca-fpga-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/Saikarthik-Ramakrishnan/ca-fpga-engine/actions/workflows/ci.yml) [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22905813.svg)](https://doi.org/10.5281/zenodo.22905813)
 
 ![CELL·NET console running a Gosper glider gun](docs/media/cellnet_demo.gif)
 
